@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { apiFetch } from "@/lib/api"
 
 export interface UsageRecord {
   id: number
@@ -61,7 +62,7 @@ export function useUsage(filters: UsageFilters = {}) {
           pageRef.current += 1
         }
 
-        const res = await fetch(buildUrl(pageRef.current))
+        const res = await apiFetch(buildUrl(pageRef.current))
         if (!res.ok) throw new Error("Failed to fetch usage records")
         const data: PagedResponse = await res.json()
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch } from "@/lib/api"
 
 export interface Plan {
   id: number
@@ -32,7 +33,7 @@ export function usePlans() {
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/plans")
+      const res = await apiFetch("/api/plans")
       if (!res.ok) throw new Error("Failed to fetch plans")
       const data = await res.json()
       setPlans(data)
@@ -45,7 +46,7 @@ export function usePlans() {
   }, [])
 
   const createPlan = useCallback(async (plan: PlanCreate) => {
-    const res = await fetch("/api/plans", {
+    const res = await apiFetch("/api/plans", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
@@ -57,7 +58,7 @@ export function usePlans() {
   }, [])
 
   const updatePlan = useCallback(async (id: number, plan: PlanUpdate) => {
-    const res = await fetch(`/api/plans/${id}`, {
+    const res = await apiFetch(`/api/plans/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
@@ -69,7 +70,7 @@ export function usePlans() {
   }, [])
 
   const deletePlan = useCallback(async (id: number) => {
-    const res = await fetch(`/api/plans/${id}`, {
+    const res = await apiFetch(`/api/plans/${id}`, {
       method: "DELETE",
     })
     if (!res.ok) throw new Error("Failed to delete plan")
