@@ -78,6 +78,8 @@ export default function TicketsPage() {
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const clearFilters = () => setFilters({})
   const hasActiveFilters = filters.priority || filters.status || filters.customerId
@@ -93,15 +95,24 @@ export default function TicketsPage() {
   }
 
   const handleDeleteClick = (ticket: Ticket) => {
+    setDeleteError(null)
     setTicketToDelete(ticket)
     setDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = async () => {
-    if (ticketToDelete) {
+  const handleDeleteConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault()
+    if (!ticketToDelete || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
       await deleteTicket(ticketToDelete.id)
       setDeleteDialogOpen(false)
       setTicketToDelete(null)
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -290,9 +301,16 @@ export default function TicketsPage() {
                 cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {deleteError && (
+              <p role="alert" className="text-sm text-red-500">
+                {deleteError}
+              </p>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={deleting}>
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
