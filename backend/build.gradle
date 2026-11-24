@@ -34,6 +34,11 @@ dependencies {
 	spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.13.0'
 }
 
+// bootRun is the local development entry point, so it enables Swagger UI unless a profile is chosen.
+tasks.named('bootRun') {
+	systemProperty 'spring.profiles.active', providers.environmentVariable('SPRING_PROFILES_ACTIVE').getOrElse('dev')
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	finalizedBy jacocoTestReport

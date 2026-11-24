@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test"
 
-const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000"
-const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
+// Both servers bind to 127.0.0.1 only, so "localhost" could resolve to ::1 and miss them.
+const frontendUrl = process.env.FRONTEND_URL ?? "http://127.0.0.1:3000"
+const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8080"
 
 export default defineConfig({
   testDir: "./e2e",

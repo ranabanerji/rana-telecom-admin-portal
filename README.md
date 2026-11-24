@@ -85,15 +85,48 @@ Run both frontend and backend:
 pnpm dev
 ```
 
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8080
+- Frontend: http://127.0.0.1:3000
+- Backend: http://127.0.0.1:8080
 
 Or run separately:
 
 ```bash
 pnpm dev:frontend   # Frontend only
-pnpm dev:backend    # Backend only
+pnpm dev:backend    # Backend only (dev profile, Swagger UI enabled)
 ```
+
+### Network Access
+
+Both servers listen on `127.0.0.1` only, so other machines on your network cannot
+reach them. This applies to `pnpm dev` and `pnpm start`.
+
+The API has no authentication. Anyone who can reach port 8080 can read, change, and
+delete every customer, device, plan, and ticket. Binding to other interfaces on a shared
+network (office or café Wi-Fi, a VPN, a cloud VM) exposes that data to everyone on it.
+Only do it on a network you trust, and only with demo data.
+
+To accept connections from other machines on purpose:
+
+```bash
+SERVER_ADDRESS=0.0.0.0 pnpm dev:backend   # Backend on all interfaces
+pnpm dev:frontend -H 0.0.0.0              # Frontend on all interfaces
+pnpm start:frontend -H 0.0.0.0            # Production frontend on all interfaces
+```
+
+Run the servers separately to do this. `pnpm dev` and `pnpm start` always use the
+loopback defaults. Use a specific interface address instead of `0.0.0.0` where you can.
+
+Other notes:
+
+- **Containers:** a server that binds to `127.0.0.1` inside a container cannot be reached
+  from outside it, even through a published port. Set `SERVER_ADDRESS=0.0.0.0` (or pass
+  `-H 0.0.0.0`) inside the container. Publish the port on the host's loopback only, for
+  example `-p 127.0.0.1:8080:8080`. If the frontend runs in a different container, point
+  `BACKEND_URL` at the backend's service address.
+- **Proxies, tunnels, and port forwarding** (SSH `-R`, ngrok, VS Code port forwarding,
+  router rules) expose loopback servers too. Loopback binding does not protect against them.
+- Loopback binding limits who can connect. It is not access control. Authentication and
+  role checks are still needed before this app can hold real data.
 
 ### Testing
 
@@ -134,8 +167,13 @@ pnpm lint
 
 ## API Documentation
 
-Start the backend, then open the Swagger UI at
-`http://localhost:8080/swagger-ui.html`.
+Swagger UI and the OpenAPI docs (`/v3/api-docs`) are enabled only in the `dev` Spring
+profile. `pnpm dev` and `pnpm dev:backend` turn it on, so open
+`http://127.0.0.1:8080/swagger-ui.html` after starting the backend that way.
+
+The built jar (`pnpm start:backend`) runs without the `dev` profile and returns 404 for
+both routes. To turn them on there, set `SPRING_PROFILES_ACTIVE=dev`. Hiding the docs
+only makes the endpoints harder to discover. It does not protect them.
 
 ## Project Structure
 

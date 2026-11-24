@@ -9,3 +9,14 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
+
+server:
+  # The API has no authentication, so only accept connections from this machine.
+  address: ${SERVER_ADDRESS:127.0.0.1}
+
+# Swagger UI and the OpenAPI docs are enabled only by the dev profile (application-dev.yaml).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

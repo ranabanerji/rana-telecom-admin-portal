@@ -142,6 +142,9 @@ jobs:
 
       - name: Run E2E tests
         run: pnpm test:e2e
+        env:
+          BACKEND_URL: http://127.0.0.1:8080
+          FRONTEND_URL: http://127.0.0.1:3000
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ !cancelled() }}
