@@ -43,10 +43,12 @@ function DeviceForm({
   const [simNumber, setSimNumber] = useState(device?.sim_number ?? "")
   const [customerId, setCustomerId] = useState(device?.customer_id?.toString() ?? "")
   const [status, setStatus] = useState(device?.status ?? "AVAILABLE")
+  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setSubmitting(true)
     try {
       const data: DeviceCreate | DeviceUpdate = {
@@ -58,6 +60,8 @@ function DeviceForm({
       }
       await onSubmit(data)
       onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed")
     } finally {
       setSubmitting(false)
     }
@@ -134,6 +138,11 @@ function DeviceForm({
           </div>
         )}
       </div>
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-red-500">
+          {error}
+        </p>
+      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

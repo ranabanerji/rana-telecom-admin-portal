@@ -22,9 +22,16 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
+    // Logs in through the UI once per role and saves the session for the other tests.
+    {
+      name: "setup",
+      testMatch: /.*\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], storageState: "playwright/.auth/admin.json" },
+      dependencies: ["setup"],
     },
   ],
   webServer: [

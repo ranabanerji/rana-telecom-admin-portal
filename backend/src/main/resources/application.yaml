@@ -2,17 +2,24 @@ spring:
   application:
     name: telecom-demo-backend
   datasource:
-    url: jdbc:sqlite:app.db
+    url: ${TELECOM_JDBC_URL:jdbc:sqlite:app.db?foreign_keys=true&date_class=INTEGER&date_precision=MILLISECONDS}
     driver-class-name: org.sqlite.JDBC
   jpa:
+    properties:
+      hibernate.jdbc.time_zone: UTC
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: none
     show-sql: false
 
 server:
-  # The API has no authentication, so only accept connections from this machine.
+  # Accept connections from this machine only; see "Network Access" in the README before changing it.
   address: ${SERVER_ADDRESS:127.0.0.1}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
 
 # Swagger UI and the OpenAPI docs are enabled only by the dev profile (application-dev.yaml).
 springdoc:
@@ -20,3 +27,18 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+# Demo logins. Passwords have no default and must be supplied through the environment; an account without a
+# password is disabled. See "Demo logins" in the README.
+app:
+  auth:
+    admin:
+      username: ${DEMO_ADMIN_USERNAME:admin}
+      password: ${DEMO_ADMIN_PASSWORD:}
+      name: ${DEMO_ADMIN_NAME:Demo Admin}
+      email: ${DEMO_ADMIN_EMAIL:admin@example.com}
+    agent:
+      username: ${DEMO_AGENT_USERNAME:agent}
+      password: ${DEMO_AGENT_PASSWORD:}
+      name: ${DEMO_AGENT_NAME:Demo Agent}
+      email: ${DEMO_AGENT_EMAIL:agent@example.com}

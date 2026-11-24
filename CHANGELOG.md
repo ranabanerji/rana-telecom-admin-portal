@@ -10,7 +10,7 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Security
 
 - The backend and the frontend now listen on `127.0.0.1` by default, so other machines on
-  the network can no longer reach the unauthenticated API or the admin UI (FAC-11). This
+  the network can no longer reach the API or the admin UI (FAC-11). This
   applies to `pnpm dev` and `pnpm start`.
 - Swagger UI (`/swagger-ui.html`) and the OpenAPI docs (`/v3/api-docs`) are off by default.
   They are on only in the `dev` Spring profile, which `pnpm dev:backend` (Gradle `bootRun`)
@@ -33,8 +33,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- The backend CI build no longer fails on 33 PMD violations in the controller tests. PMD
-  now treats MockMvc `andExpect(...)` as an assertion, and the tests were tidied up.
+- The backend CI build no longer fails on 33 PMD violations in the test code (FAC-10). Test
+  sources use a separate PMD rule set that treats MockMvc `andExpect(...)` as an assertion.
 
 ## [0.1.0] - 2026-09-16
 

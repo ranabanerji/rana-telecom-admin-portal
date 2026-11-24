@@ -18,6 +18,8 @@ function jsonResponse(body: unknown, ok = true) {
 
 describe("usePlans", () => {
   beforeEach(() => {
+    // Mutations send the CSRF cookie back as a header; with no cookie they would fetch one first.
+    document.cookie = "XSRF-TOKEN=test-token"
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([basic])))
   })
 

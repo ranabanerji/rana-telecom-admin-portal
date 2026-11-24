@@ -26,10 +26,13 @@
     "format:check": "prettier --check . && cd backend && ./gradlew formatCheck",
     "format:frontend": "prettier --write .",
     "format:backend": "cd backend && ./gradlew format",
-    "setup": "pnpm install --frozen-lockfile && pnpm setup:db",
-    "setup:db": "python3 scripts/seed-database.py",
-    "reset:db": "rm -f backend/app.db && pnpm setup:db",
-    "prepare": "husky"
+    "setup": "pnpm install --frozen-lockfile && pnpm setup:python && pnpm setup:db",
+    "setup:db": "pnpm migrate:db && .venv/bin/python scripts/seed-database.py",
+    "reset:db": "python3 -c 'raise SystemExit(\"To reset disposable data, move backend/app.db aside first, then run pnpm setup:db\")'",
+    "prepare": "husky",
+    "migrate:db": "cd backend && ./gradlew --console=plain migrateDatabase",
+    "setup:python": "python3 -m venv .venv && .venv/bin/python -m pip install -r scripts/requirements.txt",
+    "test:database": ".venv/bin/python -m unittest discover -s scripts/tests -v"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

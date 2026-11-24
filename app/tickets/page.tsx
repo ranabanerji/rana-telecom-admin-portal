@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Plus, X, Loader2 } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { useAuth } from "@/components/auth-provider"
 import { TicketsTable } from "@/components/tickets-table"
 import { TicketFormDialog } from "@/components/ticket-form-dialog"
 import {
@@ -56,11 +57,15 @@ export default function TicketsPage() {
     hasNext,
     totalElements,
     loadMore,
+    refresh,
     createTicket,
     updateTicket,
     deleteTicket,
   } = useTickets(filters)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { can } = useAuth()
+  const canWrite = can("tickets:write")
+  const canDelete = can("tickets:delete")
 
   useInfiniteScroll({
     scrollRef,
@@ -143,10 +148,12 @@ export default function TicketsPage() {
                       ? "Loading..."
                       : `${(tickets?.length ?? 0).toLocaleString()} of ${(totalElements ?? 0).toLocaleString()} tickets`}
                   </span>
-                  <Button onClick={handleAdd}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Ticket
-                  </Button>
+                  {canWrite && (
+                    <Button onClick={handleAdd}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Ticket
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="flex flex-wrap items-end gap-4">
@@ -221,19 +228,34 @@ export default function TicketsPage() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
+              {error && (
+                <div role="alert" className="flex items-center gap-2 pb-2 text-red-500">
+                  {error}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (tickets.length) void loadMore()
+                      else void refresh()
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
               {loading ? (
                 <div className="text-muted-foreground flex h-full items-center justify-center">
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                   Loading...
                 </div>
-              ) : error ? (
-                <div className="py-8 text-center text-red-500">{error}</div>
               ) : (
                 <div ref={scrollRef} className="h-full overflow-auto">
                   <TicketsTable
                     tickets={tickets}
                     onEdit={handleEdit}
                     onDelete={handleDeleteClick}
+                    canEdit={canWrite}
+                    canDelete={canDelete}
                   />
                   {loadingMore && (
                     <div className="text-muted-foreground flex items-center justify-center py-4">

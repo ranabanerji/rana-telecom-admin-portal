@@ -1,5 +1,6 @@
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { describe, it, expect, vi, afterEach } from "vitest"
+import { UNAUTHORIZED_EVENT } from "@/lib/api"
 import { useDashboardStats } from "@/hooks/use-dashboard-stats"
 
 const stats = {
@@ -77,4 +78,57 @@ describe("useDashboardStats", () => {
 
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(10)
   })
+})
+
+describe("isolated dashboard failures", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each(["http", "network", "shape"])(
+    "keeps other dashboard data when one chart fails (%s)",
+    async (failure) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) => {
+          if (url.endsWith("devices-by-status")) {
+            if (failure === "network") throw new Error("offline")
+            return {
+              ok: failure !== "http",
+              json: async () => ({ detail: "bad response" }),
+            } as Response
+          }
+          return { ok: true, json: async () => payloads[url] } as Response
+        })
+      )
+      const { result } = renderHook(() => useDashboardStats())
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.stats).toEqual(stats)
+      expect(result.current.customersByPlan).toEqual(payloads["/api/dashboard/customers-by-plan"])
+      expect(result.current.revenueByPlan).toEqual(payloads["/api/dashboard/revenue-by-plan"])
+      expect(result.current.devicesByStatus).toEqual([])
+      expect(result.current.chartErrors["devices-by-status"]).toContain("Unable to load")
+      expect(result.current.error).toBeNull()
+    }
+  )
+})
+
+it("announces expired sessions for dashboard requests", async () => {
+  const unauthorized = vi.fn()
+  window.addEventListener(UNAUTHORIZED_EVENT, unauthorized)
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    })
+  )
+  try {
+    const { result } = renderHook(() => useDashboardStats())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(unauthorized).toHaveBeenCalledTimes(5)
+    expect(result.current.error).toBe("Failed to fetch stats")
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, unauthorized)
+    vi.unstubAllGlobals()
+  }
 })

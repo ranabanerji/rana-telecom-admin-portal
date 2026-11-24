@@ -1,6 +1,8 @@
 "use client"
 
+import { responseError } from "@/lib/api-error"
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch } from "@/lib/api"
 
 export interface Plan {
   id: number
@@ -26,15 +28,17 @@ export interface PlanUpdate extends PlanCreate {
 
 export function usePlans() {
   const [plans, setPlans] = useState<Plan[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/plans")
+      const res = await apiFetch("/api/plans")
       if (!res.ok) throw new Error("Failed to fetch plans")
       const data = await res.json()
+      setTotalCount(Number(res.headers?.get("X-Total-Count") ?? data.length))
       setPlans(data)
       setError(null)
     } catch (e) {
@@ -45,34 +49,36 @@ export function usePlans() {
   }, [])
 
   const createPlan = useCallback(async (plan: PlanCreate) => {
-    const res = await fetch("/api/plans", {
+    const res = await apiFetch("/api/plans", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
     })
-    if (!res.ok) throw new Error("Failed to create plan")
+    if (!res.ok) throw await responseError(res, "Failed to create plan")
     const newPlan = await res.json()
+    setTotalCount((count) => count + 1)
     setPlans((prev) => [...prev, newPlan])
     return newPlan
   }, [])
 
   const updatePlan = useCallback(async (id: number, plan: PlanUpdate) => {
-    const res = await fetch(`/api/plans/${id}`, {
+    const res = await apiFetch(`/api/plans/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
     })
-    if (!res.ok) throw new Error("Failed to update plan")
+    if (!res.ok) throw await responseError(res, "Failed to update plan")
     const updated = await res.json()
     setPlans((prev) => prev.map((p) => (p.id === id ? updated : p)))
     return updated
   }, [])
 
   const deletePlan = useCallback(async (id: number) => {
-    const res = await fetch(`/api/plans/${id}`, {
+    const res = await apiFetch(`/api/plans/${id}`, {
       method: "DELETE",
     })
-    if (!res.ok) throw new Error("Failed to delete plan")
+    if (!res.ok) throw await responseError(res, "Failed to delete plan")
+    setTotalCount((count) => Math.max(0, count - 1))
     setPlans((prev) => prev.filter((p) => p.id !== id))
   }, [])
 
@@ -82,6 +88,7 @@ export function usePlans() {
 
   return {
     plans,
+    totalCount,
     loading,
     error,
     fetchPlans,

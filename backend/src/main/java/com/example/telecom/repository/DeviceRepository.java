@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface DeviceRepository extends JpaRepository<Device, Long> {
+    boolean existsByCustomerId(Long customerId);
+
     List<Device> findByStatus(Device.Status status);
 
     long countByStatus(Device.Status status);

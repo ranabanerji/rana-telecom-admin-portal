@@ -70,6 +70,7 @@ export default function DashboardPage() {
     revenueByPlan,
     loading,
     error,
+    chartErrors,
   } = useDashboardStats()
 
   if (loading) {
@@ -79,19 +80,6 @@ export default function DashboardPage() {
         <SidebarInset>
           <div className="flex h-screen items-center justify-center">
             <div className="text-muted-foreground">Loading dashboard...</div>
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    )
-  }
-
-  if (error) {
-    return (
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <div className="flex h-screen items-center justify-center">
-            <div className="text-red-500">{error}</div>
           </div>
         </SidebarInset>
       </SidebarProvider>
@@ -120,6 +108,11 @@ export default function DashboardPage() {
         </header>
 
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          {error && (
+            <p role="alert" className="text-red-500">
+              {error}
+            </p>
+          )}
           {/* KPI Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -173,26 +166,38 @@ export default function DashboardPage() {
                 <CardTitle className="text-headline-3">Customers by Plan</CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={customersByPlanConfig} className="mx-auto h-[250px] w-full">
-                  <PieChart accessibilityLayer>
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel nameKey="name" />}
-                    />
-                    <Pie
-                      data={customersByPlan.map((item) => ({
-                        ...item,
-                        fill:
-                          customersByPlanConfig[item.name as keyof typeof customersByPlanConfig]
-                            ?.color || "var(--chart-1)",
-                      }))}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={60}
-                      outerRadius={100}
-                    />
-                  </PieChart>
-                </ChartContainer>
+                {chartErrors["customers-by-plan"] ? (
+                  <p
+                    role="alert"
+                    className="flex h-[250px] items-center justify-center text-red-500"
+                  >
+                    {chartErrors["customers-by-plan"]}
+                  </p>
+                ) : (
+                  <ChartContainer
+                    config={customersByPlanConfig}
+                    className="mx-auto h-[250px] w-full"
+                  >
+                    <PieChart accessibilityLayer>
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel nameKey="name" />}
+                      />
+                      <Pie
+                        data={customersByPlan.map((item) => ({
+                          ...item,
+                          fill:
+                            customersByPlanConfig[item.name as keyof typeof customersByPlanConfig]
+                              ?.color || "var(--chart-1)",
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={100}
+                      />
+                    </PieChart>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -201,27 +206,36 @@ export default function DashboardPage() {
                 <CardTitle className="text-headline-3">Revenue by Plan</CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={revenueByPlanConfig} className="h-[250px] w-full">
-                  <BarChart
-                    accessibilityLayer
-                    data={revenueByPlan.map((item) => ({
-                      ...item,
-                      fill:
-                        revenueByPlanConfig[item.name as keyof typeof revenueByPlanConfig]?.color ||
-                        "var(--chart-1)",
-                    }))}
+                {chartErrors["revenue-by-plan"] ? (
+                  <p
+                    role="alert"
+                    className="flex h-[250px] items-center justify-center text-red-500"
                   >
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={10} />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                    <Bar dataKey="revenue" radius={4} />
-                  </BarChart>
-                </ChartContainer>
+                    {chartErrors["revenue-by-plan"]}
+                  </p>
+                ) : (
+                  <ChartContainer config={revenueByPlanConfig} className="h-[250px] w-full">
+                    <BarChart
+                      accessibilityLayer
+                      data={revenueByPlan.map((item) => ({
+                        ...item,
+                        fill:
+                          revenueByPlanConfig[item.name as keyof typeof revenueByPlanConfig]
+                            ?.color || "var(--chart-1)",
+                      }))}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={10} />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `$${value}`}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                      <Bar dataKey="revenue" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -233,31 +247,40 @@ export default function DashboardPage() {
                 <CardTitle className="text-headline-3">Device Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={devicesByStatusConfig} className="h-[250px] w-full">
-                  <BarChart
-                    accessibilityLayer
-                    data={devicesByStatus.map((item) => ({
-                      ...item,
-                      fill:
-                        devicesByStatusConfig[item.name as keyof typeof devicesByStatusConfig]
-                          ?.color || "var(--chart-4)",
-                    }))}
-                    layout="vertical"
+                {chartErrors["devices-by-status"] ? (
+                  <p
+                    role="alert"
+                    className="flex h-[250px] items-center justify-center text-red-500"
                   >
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" tickLine={false} axisLine={false} />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      width={85}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                    <Bar dataKey="value" radius={4} />
-                  </BarChart>
-                </ChartContainer>
+                    {chartErrors["devices-by-status"]}
+                  </p>
+                ) : (
+                  <ChartContainer config={devicesByStatusConfig} className="h-[250px] w-full">
+                    <BarChart
+                      accessibilityLayer
+                      data={devicesByStatus.map((item) => ({
+                        ...item,
+                        fill:
+                          devicesByStatusConfig[item.name as keyof typeof devicesByStatusConfig]
+                            ?.color || "var(--chart-4)",
+                      }))}
+                      layout="vertical"
+                    >
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" tickLine={false} axisLine={false} />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={10}
+                        width={85}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                      <Bar dataKey="value" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
 
@@ -266,26 +289,38 @@ export default function DashboardPage() {
                 <CardTitle className="text-headline-3">Ticket Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={ticketsByStatusConfig} className="mx-auto h-[250px] w-full">
-                  <PieChart accessibilityLayer>
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel nameKey="name" />}
-                    />
-                    <Pie
-                      data={ticketsByStatus.map((item) => ({
-                        ...item,
-                        fill:
-                          ticketsByStatusConfig[item.name as keyof typeof ticketsByStatusConfig]
-                            ?.color || "var(--chart-4)",
-                      }))}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={60}
-                      outerRadius={100}
-                    />
-                  </PieChart>
-                </ChartContainer>
+                {chartErrors["tickets-by-status"] ? (
+                  <p
+                    role="alert"
+                    className="flex h-[250px] items-center justify-center text-red-500"
+                  >
+                    {chartErrors["tickets-by-status"]}
+                  </p>
+                ) : (
+                  <ChartContainer
+                    config={ticketsByStatusConfig}
+                    className="mx-auto h-[250px] w-full"
+                  >
+                    <PieChart accessibilityLayer>
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent hideLabel nameKey="name" />}
+                      />
+                      <Pie
+                        data={ticketsByStatus.map((item) => ({
+                          ...item,
+                          fill:
+                            ticketsByStatusConfig[item.name as keyof typeof ticketsByStatusConfig]
+                              ?.color || "var(--chart-4)",
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={100}
+                      />
+                    </PieChart>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
           </div>
