@@ -16,9 +16,18 @@ interface PlansTableProps {
   plans: Plan[]
   onEdit: (plan: Plan) => void
   onDelete: (plan: Plan) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
-export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
+export function PlansTable({
+  plans,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}: PlansTableProps) {
+  const showActions = canEdit || canDelete
   const formatLimit = (limit: number | null) => (limit === null ? "Unlimited" : limit.toString())
 
   return (
@@ -32,7 +41,7 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
           <TableHead className="text-right">Minutes</TableHead>
           <TableHead className="text-right">SMS</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="w-[100px] text-right">Actions</TableHead>
+          {showActions && <TableHead className="w-[100px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -54,16 +63,32 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
                 {plan.is_active ? "Active" : "Inactive"}
               </span>
             </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(plan)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(plan)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </TableCell>
+            {showActions && (
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit ${plan.name}`}
+                      onClick={() => onEdit(plan)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ${plan.name}`}
+                      onClick={() => onDelete(plan)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

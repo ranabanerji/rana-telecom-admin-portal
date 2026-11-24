@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { apiFetch } from "@/lib/api"
 import { responseError } from "@/lib/api-error"
 
 interface Page<T> {
@@ -40,7 +41,7 @@ export function usePagedList<T>(url: string) {
       const generation = current.generation
       const page = reset ? 0 : current.page + 1
       try {
-        const res = await fetch(`${url}&page=${page}&size=50`, {
+        const res = await apiFetch(`${url}&page=${page}&size=50`, {
           signal: current.controller.signal,
         })
         if (!res.ok) throw await responseError(res, "Failed to fetch records")

@@ -1,5 +1,6 @@
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { describe, it, expect, vi, afterEach } from "vitest"
+import { UNAUTHORIZED_EVENT } from "@/lib/api"
 import { useDashboardStats } from "@/hooks/use-dashboard-stats"
 
 const stats = {
@@ -108,4 +109,26 @@ describe("isolated dashboard failures", () => {
       expect(result.current.error).toBeNull()
     }
   )
+})
+
+it("announces expired sessions for dashboard requests", async () => {
+  const unauthorized = vi.fn()
+  window.addEventListener(UNAUTHORIZED_EVENT, unauthorized)
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    })
+  )
+  try {
+    const { result } = renderHook(() => useDashboardStats())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(unauthorized).toHaveBeenCalledTimes(5)
+    expect(result.current.error).toBe("Failed to fetch stats")
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, unauthorized)
+    vi.unstubAllGlobals()
+  }
 })

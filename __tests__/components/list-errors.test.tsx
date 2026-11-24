@@ -1,8 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import PlansPage from "@/app/plans/page"
 import CustomersPage from "@/app/customers/page"
 import DevicesPage from "@/app/devices/page"
+
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({ can: () => true }),
+}))
+beforeEach(() => {
+  document.cookie = "XSRF-TOKEN=test-token"
+})
 
 // Keep the real pages, tables, dialogs and data hooks; remove unrelated navigation.
 vi.mock("@/components/app-sidebar", () => ({ AppSidebar: () => null }))

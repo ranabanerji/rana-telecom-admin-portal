@@ -11,3 +11,25 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
+
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
+# Demo logins. Passwords have no default and must be supplied through the environment; an account without a
+# password is disabled. See "Demo logins" in the README.
+app:
+  auth:
+    admin:
+      username: ${DEMO_ADMIN_USERNAME:admin}
+      password: ${DEMO_ADMIN_PASSWORD:}
+      name: ${DEMO_ADMIN_NAME:Demo Admin}
+      email: ${DEMO_ADMIN_EMAIL:admin@example.com}
+    agent:
+      username: ${DEMO_AGENT_USERNAME:agent}
+      password: ${DEMO_AGENT_PASSWORD:}
+      name: ${DEMO_AGENT_NAME:Demo Agent}
+      email: ${DEMO_AGENT_EMAIL:agent@example.com}

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useTickets } from "@/hooks/use-tickets"
+import { UNAUTHORIZED_EVENT } from "@/lib/api"
 import { useUsage } from "@/hooks/use-usage"
 
 function page(id: number, hasNext = true): Response {
@@ -116,3 +117,27 @@ for (const { name, useHook } of cases)
       expect(fetcher).toHaveBeenCalledTimes(1)
     })
   })
+
+describe("authenticated pagination", () => {
+  it("announces an expired session while keeping pagination error handling", async () => {
+    const unauthorized = vi.fn()
+    window.addEventListener(UNAUTHORIZED_EVENT, unauthorized)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: "Log in again" }),
+      })
+    )
+    try {
+      const { result } = renderHook(() => useUsage())
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(unauthorized).toHaveBeenCalledOnce()
+      expect(result.current.error).toBe("Log in again")
+      expect(result.current.records).toEqual([])
+    } finally {
+      window.removeEventListener(UNAUTHORIZED_EVENT, unauthorized)
+    }
+  })
+})

@@ -46,3 +46,9 @@ Operational notes:
 - Use `pnpm run setup`: the literal `pnpm setup` is pnpm's reserved shell-configuration command, so it cannot invoke the repository script. README now documents the correct command.
 - Retained naive timestamps require confirmation of their original source timezone before conversion. No such decision was needed for the disposable verification database, and no retained data was changed. Conversion targets a new file; rollback and explicit Flyway adoption are documented in README.
 - CI results are not monitored; the required local build/check commands passed. No merge or deployment was performed.
+
+Integration with latest main (authentication and role permissions):
+
+- Conflict resolution retains authenticated/CSRF-aware requests alongside isolated dashboard failures and shared pagination with stale-response protection. Page permission checks and visible delete conflicts/truncation coexist.
+- Security integration tests now run Flyway against a disposable SQLite file with foreign keys and canonical timestamp settings; the duplicate schema fixture was removed. The authenticated admin dependent-delete regression expects 409, and ticket editing uses the validated priority field.
+- Reverified: 79 backend tests, 64 frontend tests, six Python tests and 24 targeted E2E checks (including two login setup checks); backend lint/build/format, frontend ESLint/TypeScript/Prettier and production build all pass. Fresh disposable migration/seeding succeeds with 219,557 usage records. No retained database was changed.

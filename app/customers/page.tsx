@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Plus } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { useAuth } from "@/components/auth-provider"
 import { CustomersTable } from "@/components/customers-table"
 import { CustomerFormDialog } from "@/components/customer-form-dialog"
 import {
@@ -40,6 +41,8 @@ export default function CustomersPage() {
   const { customers, totalCount, loading, error, createCustomer, updateCustomer, deleteCustomer } =
     useCustomers()
   const { plans } = usePlans()
+  const { can } = useAuth()
+  const canWrite = can("customers:write")
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -116,10 +119,12 @@ export default function CustomersPage() {
           <Card className="flex flex-1 flex-col overflow-hidden">
             <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle className="text-headline-2">Customers</CardTitle>
-              <Button onClick={handleAdd}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Customer
-              </Button>
+              {canWrite && (
+                <Button onClick={handleAdd}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Customer
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
               {totalCount > customers.length && (
@@ -138,6 +143,8 @@ export default function CustomersPage() {
                     customers={customers}
                     onEdit={handleEdit}
                     onDelete={handleDeleteClick}
+                    canEdit={canWrite}
+                    canDelete={canWrite}
                   />
                 </div>
               )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch } from "@/lib/api"
 
 export interface DashboardStats {
   active_customers: number
@@ -41,7 +42,7 @@ export function useDashboardStats() {
       ]
       const results = await Promise.allSettled(
         endpoints.map(async (endpoint) => {
-          const response = await fetch(`/api/dashboard/${endpoint}`)
+          const response = await apiFetch(`/api/dashboard/${endpoint}`)
           if (!response.ok)
             throw new Error(
               endpoint === "stats" ? "Failed to fetch stats" : "Unable to load this chart"

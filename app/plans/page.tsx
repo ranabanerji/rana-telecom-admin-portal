@@ -26,12 +26,15 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Plus } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { useAuth } from "@/components/auth-provider"
 import { PlansTable } from "@/components/plans-table"
 import { PlanFormDialog } from "@/components/plan-form-dialog"
 import { usePlans, type Plan, type PlanCreate, type PlanUpdate } from "@/hooks/use-plans"
 
 export default function PlansPage() {
   const { plans, totalCount, loading, error, createPlan, updatePlan, deletePlan } = usePlans()
+  const { can } = useAuth()
+  const canWrite = can("plans:write")
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -108,10 +111,12 @@ export default function PlansPage() {
           <Card className="flex flex-1 flex-col overflow-hidden">
             <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle className="text-headline-2">Service Plans</CardTitle>
-              <Button onClick={handleAdd}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Plan
-              </Button>
+              {canWrite && (
+                <Button onClick={handleAdd}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Plan
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
               {totalCount > plans.length && (
@@ -126,7 +131,13 @@ export default function PlansPage() {
                 <div className="py-8 text-center text-red-500">{error}</div>
               ) : (
                 <div className="h-full overflow-auto">
-                  <PlansTable plans={plans} onEdit={handleEdit} onDelete={handleDeleteClick} />
+                  <PlansTable
+                    plans={plans}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteClick}
+                    canEdit={canWrite}
+                    canDelete={canWrite}
+                  />
                 </div>
               )}
             </CardContent>

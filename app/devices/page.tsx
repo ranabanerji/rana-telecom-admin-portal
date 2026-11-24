@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Plus } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { useAuth } from "@/components/auth-provider"
 import { DevicesTable } from "@/components/devices-table"
 import { DeviceFormDialog } from "@/components/device-form-dialog"
 import { useDevices, type Device, type DeviceCreate, type DeviceUpdate } from "@/hooks/use-devices"
@@ -33,6 +34,8 @@ import { useDevices, type Device, type DeviceCreate, type DeviceUpdate } from "@
 export default function DevicesPage() {
   const { devices, totalCount, loading, error, createDevice, updateDevice, deleteDevice } =
     useDevices()
+  const { can } = useAuth()
+  const canWrite = can("devices:write")
 
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -109,10 +112,12 @@ export default function DevicesPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle className="text-headline-2">Device Inventory</CardTitle>
-              <Button onClick={handleAdd}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Device
-              </Button>
+              {canWrite && (
+                <Button onClick={handleAdd}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Device
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {totalCount > devices.length && (
@@ -126,7 +131,13 @@ export default function DevicesPage() {
               ) : error ? (
                 <div className="py-8 text-center text-red-500">{error}</div>
               ) : (
-                <DevicesTable devices={devices} onEdit={handleEdit} onDelete={handleDeleteClick} />
+                <DevicesTable
+                  devices={devices}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteClick}
+                  canEdit={canWrite}
+                  canDelete={canWrite}
+                />
               )}
             </CardContent>
           </Card>

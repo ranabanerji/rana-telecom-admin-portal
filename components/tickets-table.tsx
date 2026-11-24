@@ -16,6 +16,8 @@ interface TicketsTableProps {
   tickets: Ticket[]
   onEdit: (ticket: Ticket) => void
   onDelete: (ticket: Ticket) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 const priorityColors: Record<string, string> = {
@@ -32,7 +34,14 @@ const statusColors: Record<string, string> = {
   CLOSED: "bg-gray-100 text-gray-800",
 }
 
-export function TicketsTable({ tickets, onEdit, onDelete }: TicketsTableProps) {
+export function TicketsTable({
+  tickets,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}: TicketsTableProps) {
+  const showActions = canEdit || canDelete
   return (
     <Table>
       <TableHeader className="bg-background sticky top-0 z-10">
@@ -43,7 +52,7 @@ export function TicketsTable({ tickets, onEdit, onDelete }: TicketsTableProps) {
           <TableHead>Priority</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Created</TableHead>
-          <TableHead className="w-[100px] text-right">Actions</TableHead>
+          {showActions && <TableHead className="w-[100px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -69,16 +78,32 @@ export function TicketsTable({ tickets, onEdit, onDelete }: TicketsTableProps) {
             <TableCell className="text-muted-foreground">
               {ticket.created_at ? new Date(ticket.created_at).toLocaleDateString() : "-"}
             </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(ticket)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(ticket)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </TableCell>
+            {showActions && (
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit ticket ${ticket.id}`}
+                      onClick={() => onEdit(ticket)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ticket ${ticket.id}`}
+                      onClick={() => onDelete(ticket)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

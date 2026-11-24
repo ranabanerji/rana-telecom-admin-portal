@@ -1,5 +1,7 @@
 "use client"
 
+import { apiFetch } from "@/lib/api"
+
 import { useCallback } from "react"
 import { usePagedList } from "@/hooks/use-paged-list"
 import { responseError } from "@/lib/api-error"
@@ -60,7 +62,7 @@ export function useTickets(filters: TicketFilters = {}) {
   const createTicket = useCallback(
     async (ticket: TicketCreate) => {
       log.info({ customerId: ticket.customerId }, "Creating ticket")
-      const res = await fetch("/api/tickets", {
+      const res = await apiFetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ticket),
@@ -80,7 +82,7 @@ export function useTickets(filters: TicketFilters = {}) {
   const updateTicket = useCallback(
     async (id: number, ticket: TicketUpdate) => {
       log.info({ ticketId: id }, "Updating ticket")
-      const res = await fetch(`/api/tickets/${id}`, {
+      const res = await apiFetch(`/api/tickets/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ticket),
@@ -100,7 +102,7 @@ export function useTickets(filters: TicketFilters = {}) {
   const deleteTicket = useCallback(
     async (id: number) => {
       log.info({ ticketId: id }, "Deleting ticket")
-      const res = await fetch(`/api/tickets/${id}`, {
+      const res = await apiFetch(`/api/tickets/${id}`, {
         method: "DELETE",
       })
       if (!res.ok) {

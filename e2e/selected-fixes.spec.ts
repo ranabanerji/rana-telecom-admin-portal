@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { csrfToken } from "./auth-helpers"
 
 const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
 
@@ -85,6 +86,11 @@ test("ticket create and clear description round-trip through the UI", async ({ p
     expect((await (await updated).json()).description).toBe("")
     await expect(page.getByRole("dialog")).not.toBeVisible()
   } finally {
-    if (ticketId) await request.delete(`${backendUrl}/api/tickets/${ticketId}`)
+    if (ticketId) {
+      const response = await request.delete(`${backendUrl}/api/tickets/${ticketId}`, {
+        headers: { "X-XSRF-TOKEN": await csrfToken(request) },
+      })
+      expect(response.status()).toBe(204)
+    }
   }
 })
