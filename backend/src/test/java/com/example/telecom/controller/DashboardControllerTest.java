@@ -10,14 +10,14 @@ import com.example.telecom.repository.PlanRepository;
 import com.example.telecom.repository.SupportTicketRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -25,10 +25,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class DashboardControllerTest {
 
-    private final CustomerRepository customerRepository = mock(CustomerRepository.class);
-    private final PlanRepository planRepository = mock(PlanRepository.class);
-    private final DeviceRepository deviceRepository = mock(DeviceRepository.class);
-    private final SupportTicketRepository ticketRepository = mock(SupportTicketRepository.class);
+    private static final String BASIC = "Basic";
+    private static final String LENGTH = "$.length()";
+    private static final String FIRST_NAME = "$[0].name";
+
+    private final CustomerRepository customerRepository = Mockito.mock(CustomerRepository.class);
+    private final PlanRepository planRepository = Mockito.mock(PlanRepository.class);
+    private final DeviceRepository deviceRepository = Mockito.mock(DeviceRepository.class);
+    private final SupportTicketRepository ticketRepository = Mockito.mock(SupportTicketRepository.class);
 
     private MockMvc mockMvc;
 
@@ -43,7 +47,7 @@ class DashboardControllerTest {
                         new DashboardController(customerRepository, planRepository, deviceRepository, ticketRepository))
                 .build();
 
-        Plan basic = plan(1L, "Basic", "20.00");
+        Plan basic = plan(1L, BASIC, "20.00");
         Plan standard = plan(2L, "Standard", "40.00");
         Plan premium = plan(3L, "Premium", "60.00");
 
@@ -60,7 +64,7 @@ class DashboardControllerTest {
         when(customerRepository.findAll())
                 .thenReturn(List.of(activeBasicOne, activeBasicTwo, activeStandard, suspendedPremium));
         when(planRepository.findAll()).thenReturn(List.of(basic, standard, premium));
-        when(ticketRepository.countByStatusIn(any())).thenReturn(5L);
+        when(ticketRepository.countByStatusIn(ArgumentMatchers.any())).thenReturn(5L);
         when(deviceRepository.countByStatus(Device.Status.ASSIGNED)).thenReturn(7L);
     }
 
@@ -95,7 +99,7 @@ class DashboardControllerTest {
     @Test
     void revenueByPlanOnlyIncludesPlansWithActiveCustomers() throws Exception {
         mockMvc.perform(get("/api/dashboard/revenue-by-plan")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].name").value("Basic"))
+                .andExpect(jsonPath(LENGTH).value(2)).andExpect(jsonPath(FIRST_NAME).value(BASIC))
                 .andExpect(jsonPath("$[1].name").value("Standard"));
     }
 
@@ -108,10 +112,10 @@ class DashboardControllerTest {
     @Test
     void customersByPlanReturnsOneEntryPerPlan() throws Exception {
         when(customerRepository.countByPlanName())
-                .thenReturn(List.of(new Object[] {"Basic", 2L}, new Object[] {"Standard", 1L}));
+                .thenReturn(List.of(new Object[] {BASIC, 2L}, new Object[] {"Standard", 1L}));
 
         mockMvc.perform(get("/api/dashboard/customers-by-plan")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].name").value("Basic"))
+                .andExpect(jsonPath(LENGTH).value(2)).andExpect(jsonPath(FIRST_NAME).value(BASIC))
                 .andExpect(jsonPath("$[0].value").value(2));
     }
 
@@ -121,7 +125,7 @@ class DashboardControllerTest {
                 List.of(new Object[] {Device.Status.ASSIGNED, 7L}, new Object[] {Device.Status.AVAILABLE, 3L}));
 
         mockMvc.perform(get("/api/dashboard/devices-by-status")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].name").value("ASSIGNED"))
+                .andExpect(jsonPath(LENGTH).value(2)).andExpect(jsonPath(FIRST_NAME).value("ASSIGNED"))
                 .andExpect(jsonPath("$[1].value").value(3));
     }
 
@@ -131,7 +135,7 @@ class DashboardControllerTest {
                 List.of(new Object[] {SupportTicket.Status.OPEN, 4L}, new Object[] {SupportTicket.Status.CLOSED, 9L}));
 
         mockMvc.perform(get("/api/dashboard/tickets-by-status")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].name").value("OPEN"))
+                .andExpect(jsonPath(LENGTH).value(2)).andExpect(jsonPath(FIRST_NAME).value("OPEN"))
                 .andExpect(jsonPath("$[1].value").value(9));
     }
 
