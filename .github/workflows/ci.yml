@@ -137,8 +137,9 @@ jobs:
 
       - name: Setup database
         run: |
-          python3 -m pip install --requirement scripts/requirements.txt
-          python3 scripts/seed-database.py
+          pnpm setup:python
+          pnpm setup:db
+          pnpm test:database
 
       # Throwaway demo passwords for this run; the backend and the Playwright login read the same variables.
       - name: Generate demo login passwords

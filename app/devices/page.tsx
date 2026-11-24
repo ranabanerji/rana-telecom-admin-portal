@@ -32,10 +32,13 @@ import { DeviceFormDialog } from "@/components/device-form-dialog"
 import { useDevices, type Device, type DeviceCreate, type DeviceUpdate } from "@/hooks/use-devices"
 
 export default function DevicesPage() {
-  const { devices, loading, error, createDevice, updateDevice, deleteDevice } = useDevices()
+  const { devices, totalCount, loading, error, createDevice, updateDevice, deleteDevice } =
+    useDevices()
   const { can } = useAuth()
   const canWrite = can("devices:write")
 
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editingDevice, setEditingDevice] = useState<Device | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -52,15 +55,24 @@ export default function DevicesPage() {
   }
 
   const handleDeleteClick = (device: Device) => {
+    setDeleteError(null)
     setDeviceToDelete(device)
     setDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = async () => {
-    if (deviceToDelete) {
+  const handleDeleteConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault()
+    if (!deviceToDelete || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
       await deleteDevice(deviceToDelete.id)
       setDeleteDialogOpen(false)
       setDeviceToDelete(null)
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -108,6 +120,12 @@ export default function DevicesPage() {
               )}
             </CardHeader>
             <CardContent>
+              {totalCount > devices.length && (
+                <p role="status" className="text-muted-foreground pb-2 text-sm">
+                  Showing {devices.length} of {totalCount} devices. This list is limited; some
+                  records are not shown.
+                </p>
+              )}
               {loading ? (
                 <div className="text-muted-foreground py-8 text-center">Loading...</div>
               ) : error ? (
@@ -141,9 +159,16 @@ export default function DevicesPage() {
                 This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {deleteError && (
+              <p role="alert" className="text-sm text-red-500">
+                {deleteError}
+              </p>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={deleting}>
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -29,7 +29,7 @@ public class Customer {
     private String phone;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "plan_id")
+    @JoinColumn(name = "plan_id", nullable = false)
     private Plan plan;
 
     @Enumerated(EnumType.STRING)

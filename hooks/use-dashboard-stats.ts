@@ -27,28 +27,48 @@ export function useDashboardStats() {
   const [ticketsByStatus, setTicketsByStatus] = useState<ChartData[]>([])
   const [revenueByPlan, setRevenueByPlan] = useState<RevenueData[]>([])
   const [loading, setLoading] = useState(true)
+  const [chartErrors, setChartErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
-      const [statsRes, customersPlanRes, devicesStatusRes, ticketsStatusRes, revenueRes] =
-        await Promise.all([
-          apiFetch("/api/dashboard/stats"),
-          apiFetch("/api/dashboard/customers-by-plan"),
-          apiFetch("/api/dashboard/devices-by-status"),
-          apiFetch("/api/dashboard/tickets-by-status"),
-          apiFetch("/api/dashboard/revenue-by-plan"),
-        ])
-
-      if (!statsRes.ok) throw new Error("Failed to fetch stats")
-
-      setStats(await statsRes.json())
-      setCustomersByPlan(await customersPlanRes.json())
-      setDevicesByStatus(await devicesStatusRes.json())
-      setTicketsByStatus(await ticketsStatusRes.json())
-      setRevenueByPlan(await revenueRes.json())
-      setError(null)
+      const endpoints = [
+        "stats",
+        "customers-by-plan",
+        "devices-by-status",
+        "tickets-by-status",
+        "revenue-by-plan",
+      ]
+      const results = await Promise.allSettled(
+        endpoints.map(async (endpoint) => {
+          const response = await apiFetch(`/api/dashboard/${endpoint}`)
+          if (!response.ok)
+            throw new Error(
+              endpoint === "stats" ? "Failed to fetch stats" : "Unable to load this chart"
+            )
+          const data = await response.json()
+          if (endpoint !== "stats" && !Array.isArray(data))
+            throw new Error("Invalid chart response")
+          return data
+        })
+      )
+      const [summary, ...charts] = results
+      if (summary.status === "fulfilled") {
+        setStats(summary.value)
+        setError(null)
+      } else {
+        setStats(null)
+        setError("Failed to fetch stats")
+      }
+      const setters = [setCustomersByPlan, setDevicesByStatus, setTicketsByStatus, setRevenueByPlan]
+      const errors: Record<string, string> = {}
+      charts.forEach((result, index) => {
+        setters[index](result.status === "fulfilled" ? result.value : [])
+        if (result.status === "rejected")
+          errors[endpoints[index + 1]] = "Unable to load this chart. Please refresh to retry."
+      })
+      setChartErrors(errors)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error")
     } finally {
@@ -68,6 +88,7 @@ export function useDashboardStats() {
     revenueByPlan,
     loading,
     error,
+    chartErrors,
     fetchStats,
   }
 }

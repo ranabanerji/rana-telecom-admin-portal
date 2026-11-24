@@ -2,9 +2,11 @@ spring:
   application:
     name: telecom-demo-backend
   datasource:
-    url: jdbc:sqlite:app.db
+    url: ${TELECOM_JDBC_URL:jdbc:sqlite:app.db?foreign_keys=true&date_class=INTEGER&date_precision=MILLISECONDS}
     driver-class-name: org.sqlite.JDBC
   jpa:
+    properties:
+      hibernate.jdbc.time_zone: UTC
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: none

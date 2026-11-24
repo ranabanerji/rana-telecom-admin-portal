@@ -39,7 +39,12 @@ class CustomerControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new CustomerController(repository, planRepository)).build();
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(new CustomerController(repository, planRepository,
+                        mock(com.example.telecom.repository.SupportTicketRepository.class),
+                        mock(com.example.telecom.repository.UsageRecordRepository.class),
+                        mock(com.example.telecom.repository.DeviceRepository.class)))
+                .setControllerAdvice(new ApiExceptionHandler()).build();
     }
 
     @Test

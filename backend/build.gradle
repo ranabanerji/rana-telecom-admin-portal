@@ -25,6 +25,8 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8'
 	runtimeOnly 'org.xerial:sqlite-jdbc:3.47.1.0'
@@ -123,6 +125,7 @@ pmdMain {
 }
 
 pmdTest {
+	ruleSetFiles = files("${rootDir}/config/pmd-test-ruleset.xml")
 	source = sourceSets.test.allJava
 }
 
@@ -145,4 +148,11 @@ tasks.register('format') {
 	dependsOn 'spotlessApply'
 	description = 'Apply code formatting'
 	group = 'verification'
+}
+
+// Schema setup without starting a web server or Hibernate.
+tasks.register('migrateDatabase', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.example.telecom.DatabaseMigration'
+    systemProperty 'telecom.adoptLegacy', project.findProperty('adoptLegacy') ?: 'false'
 }

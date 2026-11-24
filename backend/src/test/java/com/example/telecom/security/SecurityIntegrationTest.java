@@ -49,6 +49,8 @@ class SecurityIntegrationTest {
     private static final String ADMIN_PASSWORD = UUID.randomUUID().toString();
     private static final String AGENT_PASSWORD = UUID.randomUUID().toString();
 
+    private static final Path DATABASE = tempDatabase();
+
     private static final String LOGIN_URL = "/api/auth/login";
     private static final String CUSTOMERS = "/api/customers";
     private static final String TICKETS = "/api/tickets";
@@ -82,10 +84,9 @@ class SecurityIntegrationTest {
     static void securityProperties(DynamicPropertyRegistry registry) {
         // In-memory SQLite gives each pooled connection its own empty database, so use
         // a throwaway file.
-        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + tempDatabase());
+        registry.add("spring.datasource.url",
+                () -> "jdbc:sqlite:" + DATABASE + "?foreign_keys=true&date_class=INTEGER&date_precision=MILLISECONDS");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
-        registry.add("spring.sql.init.mode", () -> "always");
-        registry.add("spring.sql.init.schema-locations", () -> "classpath:seeded-schema.sql");
         registry.add("app.auth.admin.username", () -> ADMIN_USERNAME);
         registry.add("app.auth.admin.password", () -> ADMIN_PASSWORD);
         registry.add("app.auth.admin.name", () -> "Test Admin");
@@ -232,7 +233,7 @@ class SecurityIntegrationTest {
         String createBody = "{\"customerId\":" + customer.getId()
                 + ",\"subject\":\"Roaming\",\"description\":\"Enable roaming\",\"priority\":\"MEDIUM\"}";
         String updateBody = """
-                {"subject":"Billing","description":"Answered","status":"RESOLVED"}
+                {"subject":"Billing","description":"Answered","priority":"LOW","status":"RESOLVED"}
                 """;
 
         mockMvc.perform(MockMvcRequestBuilders.post(TICKETS).session(session).with(xsrf())
@@ -263,6 +264,15 @@ class SecurityIntegrationTest {
                 .andExpect(status().isNoContent());
 
         Assertions.assertFalse(customerRepository.existsById(spare.getId()), "customer should be deleted");
+    }
+
+    @Test
+    void adminCannotDeleteACustomerWithDependents() throws Exception {
+        MockHttpSession session = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        mockMvc.perform(MockMvcRequestBuilders.delete(CUSTOMER_PATH, customer.getId()).session(session).with(xsrf()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").exists());
+        Assertions.assertTrue(customerRepository.existsById(customer.getId()), "customer should remain");
+        Assertions.assertTrue(ticketRepository.existsById(ticket.getId()), "dependent ticket should remain");
     }
 
     @Test

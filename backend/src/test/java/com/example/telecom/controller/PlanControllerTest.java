@@ -35,7 +35,10 @@ class PlanControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new PlanController(repository)).build();
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(
+                        new PlanController(repository, mock(com.example.telecom.repository.CustomerRepository.class)))
+                .build();
     }
 
     @Test
