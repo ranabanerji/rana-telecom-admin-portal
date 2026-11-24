@@ -12,6 +12,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { HealthStatus } from "@/components/health-status"
 import { useDashboardStats } from "@/hooks/use-dashboard-stats"
+import { planColors } from "@/lib/chart-colors"
 import { Users, DollarSign, Ticket, Smartphone } from "lucide-react"
 import {
   ChartContainer,
@@ -21,28 +22,16 @@ import {
 } from "@/components/ui/chart"
 import { Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from "recharts"
 
-const customersByPlanConfig: ChartConfig = {
-  value: { label: "Customers" },
-  Basic: { label: "Basic", color: "var(--chart-1)" },
-  Standard: { label: "Standard", color: "var(--chart-2)" },
-  Premium: { label: "Premium", color: "var(--chart-3)" },
-  Unlimited: { label: "Unlimited", color: "var(--chart-4)" },
-  Family: { label: "Family", color: "var(--chart-5)" },
-  "Business Starter": { label: "Business Starter", color: "var(--chart-6)" },
-  "Business Pro": { label: "Business Pro", color: "var(--chart-7)" },
-  Student: { label: "Student", color: "var(--chart-8)" },
-}
-
-const revenueByPlanConfig: ChartConfig = {
-  revenue: { label: "Revenue" },
-  Basic: { label: "Basic", color: "var(--chart-1)" },
-  Standard: { label: "Standard", color: "var(--chart-2)" },
-  Premium: { label: "Premium", color: "var(--chart-3)" },
-  Unlimited: { label: "Unlimited", color: "var(--chart-4)" },
-  Family: { label: "Family", color: "var(--chart-5)" },
-  "Business Starter": { label: "Business Starter", color: "var(--chart-6)" },
-  "Business Pro": { label: "Business Pro", color: "var(--chart-7)" },
-  Student: { label: "Student", color: "var(--chart-8)" },
+function planChartConfig(
+  dataKey: string,
+  label: string,
+  plans: { plan_id: number; name: string }[],
+  colors: Map<number, string>
+): ChartConfig {
+  return Object.fromEntries([
+    [dataKey, { label }],
+    ...plans.map((plan) => [plan.name, { label: plan.name, color: colors.get(plan.plan_id) }]),
+  ])
 }
 
 const devicesByStatusConfig: ChartConfig = {
@@ -72,6 +61,10 @@ export default function DashboardPage() {
     error,
     chartErrors,
   } = useDashboardStats()
+
+  const colorByPlan = planColors([...customersByPlan, ...revenueByPlan].map((plan) => plan.plan_id))
+  const customersByPlanConfig = planChartConfig("value", "Customers", customersByPlan, colorByPlan)
+  const revenueByPlanConfig = planChartConfig("revenue", "Revenue", revenueByPlan, colorByPlan)
 
   if (loading) {
     return (
@@ -186,9 +179,7 @@ export default function DashboardPage() {
                       <Pie
                         data={customersByPlan.map((item) => ({
                           ...item,
-                          fill:
-                            customersByPlanConfig[item.name as keyof typeof customersByPlanConfig]
-                              ?.color || "var(--chart-1)",
+                          fill: colorByPlan.get(item.plan_id),
                         }))}
                         dataKey="value"
                         nameKey="name"
@@ -219,9 +210,7 @@ export default function DashboardPage() {
                       accessibilityLayer
                       data={revenueByPlan.map((item) => ({
                         ...item,
-                        fill:
-                          revenueByPlanConfig[item.name as keyof typeof revenueByPlanConfig]
-                            ?.color || "var(--chart-1)",
+                        fill: colorByPlan.get(item.plan_id),
                       }))}
                     >
                       <CartesianGrid vertical={false} />

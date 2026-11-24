@@ -15,14 +15,19 @@ export interface ChartData {
   value: number
 }
 
+export interface PlanChartData extends ChartData {
+  plan_id: number
+}
+
 export interface RevenueData {
+  plan_id: number
   name: string
   revenue: number
 }
 
 export function useDashboardStats() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [customersByPlan, setCustomersByPlan] = useState<ChartData[]>([])
+  const [customersByPlan, setCustomersByPlan] = useState<PlanChartData[]>([])
   const [devicesByStatus, setDevicesByStatus] = useState<ChartData[]>([])
   const [ticketsByStatus, setTicketsByStatus] = useState<ChartData[]>([])
   const [revenueByPlan, setRevenueByPlan] = useState<RevenueData[]>([])
