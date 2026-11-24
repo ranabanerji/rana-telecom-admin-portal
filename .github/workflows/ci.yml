@@ -140,6 +140,15 @@ jobs:
           python3 -m pip install --requirement scripts/requirements.txt
           python3 scripts/seed-database.py
 
+      # Throwaway demo passwords for this run; the backend and the Playwright login read the same variables.
+      - name: Generate demo login passwords
+        run: |
+          for name in DEMO_ADMIN_PASSWORD DEMO_AGENT_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
       - name: Run E2E tests
         run: pnpm test:e2e
 

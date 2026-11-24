@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { apiFetch } from "@/lib/api"
 import { createLogger } from "@/lib/logger"
 
 const log = createLogger("useTickets")
@@ -80,7 +81,7 @@ export function useTickets(filters: TicketFilters = {}) {
         }
 
         log.info({ page: pageRef.current, filters }, "Fetching tickets")
-        const res = await fetch(buildUrl(pageRef.current))
+        const res = await apiFetch(buildUrl(pageRef.current))
         if (!res.ok) throw new Error("Failed to fetch tickets")
         const data: PagedResponse = await res.json()
 
@@ -118,7 +119,7 @@ export function useTickets(filters: TicketFilters = {}) {
   const createTicket = useCallback(
     async (ticket: TicketCreate) => {
       log.info({ customerId: ticket.customerId }, "Creating ticket")
-      const res = await fetch("/api/tickets", {
+      const res = await apiFetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(ticket),
@@ -137,7 +138,7 @@ export function useTickets(filters: TicketFilters = {}) {
 
   const updateTicket = useCallback(async (id: number, ticket: TicketUpdate) => {
     log.info({ ticketId: id }, "Updating ticket")
-    const res = await fetch(`/api/tickets/${id}`, {
+    const res = await apiFetch(`/api/tickets/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(ticket),
@@ -154,7 +155,7 @@ export function useTickets(filters: TicketFilters = {}) {
 
   const deleteTicket = useCallback(async (id: number) => {
     log.info({ ticketId: id }, "Deleting ticket")
-    const res = await fetch(`/api/tickets/${id}`, {
+    const res = await apiFetch(`/api/tickets/${id}`, {
       method: "DELETE",
     })
     if (!res.ok) {

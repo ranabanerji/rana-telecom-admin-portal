@@ -16,6 +16,8 @@ interface DevicesTableProps {
   devices: Device[]
   onEdit: (device: Device) => void
   onDelete: (device: Device) => void
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 const statusColors: Record<string, string> = {
@@ -25,7 +27,14 @@ const statusColors: Record<string, string> = {
   DAMAGED: "bg-orange-100 text-orange-800",
 }
 
-export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
+export function DevicesTable({
+  devices,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}: DevicesTableProps) {
+  const showActions = canEdit || canDelete
   return (
     <Table>
       <TableHeader>
@@ -36,7 +45,7 @@ export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
           <TableHead>SIM Number</TableHead>
           <TableHead>Customer</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="w-[100px] text-right">Actions</TableHead>
+          {showActions && <TableHead className="w-[100px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -54,16 +63,32 @@ export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
                 {device.status}
               </span>
             </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(device)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => onDelete(device)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </TableCell>
+            {showActions && (
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit ${device.model} ${device.imei}`}
+                      onClick={() => onEdit(device)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ${device.model} ${device.imei}`}
+                      onClick={() => onDelete(device)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

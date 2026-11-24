@@ -16,12 +16,6 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-const user = {
-  name: "Admin User",
-  email: "admin@example.com",
-  avatar: "",
-}
-
 const teams = [
   {
     name: "Telecom Demo",
@@ -80,7 +74,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItemsWithActive} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
