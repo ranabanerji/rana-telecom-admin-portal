@@ -1,5 +1,6 @@
 "use client"
 
+import { responseError } from "@/lib/api-error"
 import { useState, useEffect, useCallback } from "react"
 
 export interface Customer {
@@ -31,6 +32,7 @@ export interface CustomerUpdate extends CustomerCreate {
 
 export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,6 +42,7 @@ export function useCustomers() {
       const res = await fetch("/api/customers")
       if (!res.ok) throw new Error("Failed to fetch customers")
       const data = await res.json()
+      setTotalCount(Number(res.headers?.get("X-Total-Count") ?? data.length))
       setCustomers(data)
       setError(null)
     } catch (e) {
@@ -55,8 +58,9 @@ export function useCustomers() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(customer),
     })
-    if (!res.ok) throw new Error("Failed to create customer")
+    if (!res.ok) throw await responseError(res, "Failed to create customer")
     const newCustomer = await res.json()
+    setTotalCount((count) => count + 1)
     setCustomers((prev) => [...prev, newCustomer])
     return newCustomer
   }, [])
@@ -67,7 +71,7 @@ export function useCustomers() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(customer),
     })
-    if (!res.ok) throw new Error("Failed to update customer")
+    if (!res.ok) throw await responseError(res, "Failed to update customer")
     const updated = await res.json()
     setCustomers((prev) => prev.map((c) => (c.id === id ? updated : c)))
     return updated
@@ -77,7 +81,8 @@ export function useCustomers() {
     const res = await fetch(`/api/customers/${id}`, {
       method: "DELETE",
     })
-    if (!res.ok) throw new Error("Failed to delete customer")
+    if (!res.ok) throw await responseError(res, "Failed to delete customer")
+    setTotalCount((count) => Math.max(0, count - 1))
     setCustomers((prev) => prev.filter((c) => c.id !== id))
   }, [])
 
@@ -87,6 +92,7 @@ export function useCustomers() {
 
   return {
     customers,
+    totalCount,
     loading,
     error,
     fetchCustomers,

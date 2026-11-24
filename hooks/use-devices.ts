@@ -1,5 +1,6 @@
 "use client"
 
+import { responseError } from "@/lib/api-error"
 import { useState, useEffect, useCallback } from "react"
 
 export interface Device {
@@ -27,6 +28,7 @@ export interface DeviceUpdate extends DeviceCreate {
 
 export function useDevices() {
   const [devices, setDevices] = useState<Device[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,6 +38,7 @@ export function useDevices() {
       const res = await fetch("/api/devices")
       if (!res.ok) throw new Error("Failed to fetch devices")
       const data = await res.json()
+      setTotalCount(Number(res.headers?.get("X-Total-Count") ?? data.length))
       setDevices(data)
       setError(null)
     } catch (e) {
@@ -51,8 +54,9 @@ export function useDevices() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(device),
     })
-    if (!res.ok) throw new Error("Failed to create device")
+    if (!res.ok) throw await responseError(res, "Failed to create device")
     const newDevice = await res.json()
+    setTotalCount((count) => count + 1)
     setDevices((prev) => [...prev, newDevice])
     return newDevice
   }, [])
@@ -63,7 +67,7 @@ export function useDevices() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(device),
     })
-    if (!res.ok) throw new Error("Failed to update device")
+    if (!res.ok) throw await responseError(res, "Failed to update device")
     const updated = await res.json()
     setDevices((prev) => prev.map((d) => (d.id === id ? updated : d)))
     return updated
@@ -73,7 +77,8 @@ export function useDevices() {
     const res = await fetch(`/api/devices/${id}`, {
       method: "DELETE",
     })
-    if (!res.ok) throw new Error("Failed to delete device")
+    if (!res.ok) throw await responseError(res, "Failed to delete device")
+    setTotalCount((count) => Math.max(0, count - 1))
     setDevices((prev) => prev.filter((d) => d.id !== id))
   }, [])
 
@@ -83,6 +88,7 @@ export function useDevices() {
 
   return {
     devices,
+    totalCount,
     loading,
     error,
     fetchDevices,

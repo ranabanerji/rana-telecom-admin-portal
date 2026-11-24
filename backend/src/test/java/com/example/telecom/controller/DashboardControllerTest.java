@@ -107,8 +107,8 @@ class DashboardControllerTest {
 
     @Test
     void customersByPlanReturnsOneEntryPerPlan() throws Exception {
-        when(customerRepository.countByPlanName())
-                .thenReturn(List.of(new Object[] {"Basic", 2L}, new Object[] {"Standard", 1L}));
+        when(customerRepository.countByPlanId())
+                .thenReturn(List.of(new Object[] {1L, "Basic", 2L}, new Object[] {2L, "Standard", 1L}));
 
         mockMvc.perform(get("/api/dashboard/customers-by-plan")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].name").value("Basic"))

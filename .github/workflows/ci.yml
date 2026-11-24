@@ -137,8 +137,9 @@ jobs:
 
       - name: Setup database
         run: |
-          python3 -m pip install --requirement scripts/requirements.txt
-          python3 scripts/seed-database.py
+          pnpm setup:python
+          pnpm setup:db
+          pnpm test:database
 
       - name: Run E2E tests
         run: pnpm test:e2e

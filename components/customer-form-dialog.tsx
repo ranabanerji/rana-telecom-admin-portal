@@ -49,10 +49,12 @@ function CustomerForm({
   const [planId, setPlanId] = useState(customer?.plan_id?.toString() ?? "")
   const [status, setStatus] = useState(customer?.status ?? "ACTIVE")
   const [balance, setBalance] = useState(customer?.balance?.toString() ?? "0")
+  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setSubmitting(true)
     try {
       const data: CustomerCreate | CustomerUpdate = {
@@ -66,6 +68,8 @@ function CustomerForm({
       }
       await onSubmit(data)
       onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed")
     } finally {
       setSubmitting(false)
     }
@@ -162,6 +166,11 @@ function CustomerForm({
           />
         </div>
       </div>
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-red-500">
+          {error}
+        </p>
+      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

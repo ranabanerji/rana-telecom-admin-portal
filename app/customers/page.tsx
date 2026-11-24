@@ -37,10 +37,12 @@ import {
 import { usePlans } from "@/hooks/use-plans"
 
 export default function CustomersPage() {
-  const { customers, loading, error, createCustomer, updateCustomer, deleteCustomer } =
+  const { customers, totalCount, loading, error, createCustomer, updateCustomer, deleteCustomer } =
     useCustomers()
   const { plans } = usePlans()
 
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -57,15 +59,24 @@ export default function CustomersPage() {
   }
 
   const handleDeleteClick = (customer: Customer) => {
+    setDeleteError(null)
     setCustomerToDelete(customer)
     setDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = async () => {
-    if (customerToDelete) {
+  const handleDeleteConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault()
+    if (!customerToDelete || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
       await deleteCustomer(customerToDelete.id)
       setDeleteDialogOpen(false)
       setCustomerToDelete(null)
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -111,6 +122,12 @@ export default function CustomersPage() {
               </Button>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
+              {totalCount > customers.length && (
+                <p role="status" className="text-muted-foreground pb-2 text-sm">
+                  Showing {customers.length} of {totalCount} customers. This list is limited; some
+                  records are not shown.
+                </p>
+              )}
               {loading ? (
                 <div className="text-muted-foreground py-8 text-center">Loading...</div>
               ) : error ? (
@@ -145,9 +162,16 @@ export default function CustomersPage() {
                 {customerToDelete?.last_name}? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {deleteError && (
+              <p role="alert" className="text-sm text-red-500">
+                {deleteError}
+              </p>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={deleting}>
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

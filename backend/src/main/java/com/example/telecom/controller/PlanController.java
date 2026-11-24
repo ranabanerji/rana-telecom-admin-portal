@@ -2,10 +2,15 @@ package com.example.telecom.controller;
 
 import com.example.telecom.model.Plan;
 import com.example.telecom.repository.PlanRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
+import com.example.telecom.repository.CustomerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -18,17 +23,20 @@ public class PlanController {
     private static final Logger LOG = LoggerFactory.getLogger(PlanController.class);
 
     private final PlanRepository repository;
+    private final CustomerRepository customers;
 
-    public PlanController(PlanRepository repository) {
+    public PlanController(PlanRepository repository, CustomerRepository customers) {
         this.repository = repository;
+        this.customers = customers;
     }
 
     @GetMapping
-    public List<PlanResponse> getAllPlans() {
+    public ResponseEntity<List<PlanResponse>> getAllPlans() {
         LOG.info("Fetching all plans");
-        List<PlanResponse> plans = repository.findAll(PageRequest.of(0, 100)).stream().map(PlanResponse::from).toList();
+        List<PlanResponse> plans = repository.findAll(PageRequest.of(0, 100, Sort.by("id"))).stream()
+                .map(PlanResponse::from).toList();
         LOG.debug("Found {} plans", plans.size());
-        return plans;
+        return ResponseEntity.ok().header("X-Total-Count", Long.toString(repository.count())).body(plans);
     }
 
     @GetMapping("/active")
@@ -52,7 +60,7 @@ public class PlanController {
     }
 
     @PostMapping
-    public PlanResponse createPlan(@RequestBody PlanRequest request) {
+    public PlanResponse createPlan(@Valid @RequestBody PlanRequest request) {
         LOG.info("Creating plan");
         Plan plan = new Plan(request.name(), request.monthlyPrice(), request.dataLimitGb(), request.minutesLimit(),
                 request.smsLimit());
@@ -62,7 +70,7 @@ public class PlanController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PlanResponse> updatePlan(@PathVariable Long id, @RequestBody PlanRequest request) {
+    public ResponseEntity<PlanResponse> updatePlan(@PathVariable Long id, @Valid @RequestBody PlanRequest request) {
         LOG.info("Updating plan: id={}", id);
         return repository.findById(id).map(plan -> {
             plan.setName(request.name());
@@ -89,13 +97,18 @@ public class PlanController {
             LOG.warn("Plan not found for deletion: id={}", id);
             return ResponseEntity.notFound().build();
         }
+        if (customers.existsByPlanId(id)) {
+            throw new FieldProblem("planId", "Customers use this plan. Deactivate it instead of deleting it.",
+                    HttpStatus.CONFLICT);
+        }
         repository.deleteById(id);
         LOG.info("Plan deleted: id={}", id);
         return ResponseEntity.noContent().build();
     }
 
-    public record PlanRequest(String name, BigDecimal monthlyPrice, Integer dataLimitGb, Integer minutesLimit,
-            Integer smsLimit, Boolean isActive) {
+    public record PlanRequest(@NotBlank String name, @NotNull @Positive BigDecimal monthlyPrice,
+            @PositiveOrZero Integer dataLimitGb, @PositiveOrZero Integer minutesLimit, @PositiveOrZero Integer smsLimit,
+            Boolean isActive) {
     }
 
     public record PlanResponse(Long id, String name, BigDecimal monthly_price, Integer data_limit_gb,

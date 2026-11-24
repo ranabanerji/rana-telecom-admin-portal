@@ -31,8 +31,10 @@ import { PlanFormDialog } from "@/components/plan-form-dialog"
 import { usePlans, type Plan, type PlanCreate, type PlanUpdate } from "@/hooks/use-plans"
 
 export default function PlansPage() {
-  const { plans, loading, error, createPlan, updatePlan, deletePlan } = usePlans()
+  const { plans, totalCount, loading, error, createPlan, updatePlan, deletePlan } = usePlans()
 
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -49,15 +51,24 @@ export default function PlansPage() {
   }
 
   const handleDeleteClick = (plan: Plan) => {
+    setDeleteError(null)
     setPlanToDelete(plan)
     setDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = async () => {
-    if (planToDelete) {
+  const handleDeleteConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault()
+    if (!planToDelete || deleting) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
       await deletePlan(planToDelete.id)
       setDeleteDialogOpen(false)
       setPlanToDelete(null)
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -103,6 +114,12 @@ export default function PlansPage() {
               </Button>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
+              {totalCount > plans.length && (
+                <p role="status" className="text-muted-foreground pb-2 text-sm">
+                  Showing {plans.length} of {totalCount} plans. This list is limited; some records
+                  are not shown.
+                </p>
+              )}
               {loading ? (
                 <div className="text-muted-foreground py-8 text-center">Loading...</div>
               ) : error ? (
@@ -132,9 +149,16 @@ export default function PlansPage() {
                 be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {deleteError && (
+              <p role="alert" className="text-sm text-red-500">
+                {deleteError}
+              </p>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={deleting}>
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -1,5 +1,6 @@
 "use client"
 
+import { responseError } from "@/lib/api-error"
 import { useState, useEffect, useCallback } from "react"
 
 export interface Plan {
@@ -26,6 +27,7 @@ export interface PlanUpdate extends PlanCreate {
 
 export function usePlans() {
   const [plans, setPlans] = useState<Plan[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,6 +37,7 @@ export function usePlans() {
       const res = await fetch("/api/plans")
       if (!res.ok) throw new Error("Failed to fetch plans")
       const data = await res.json()
+      setTotalCount(Number(res.headers?.get("X-Total-Count") ?? data.length))
       setPlans(data)
       setError(null)
     } catch (e) {
@@ -50,8 +53,9 @@ export function usePlans() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
     })
-    if (!res.ok) throw new Error("Failed to create plan")
+    if (!res.ok) throw await responseError(res, "Failed to create plan")
     const newPlan = await res.json()
+    setTotalCount((count) => count + 1)
     setPlans((prev) => [...prev, newPlan])
     return newPlan
   }, [])
@@ -62,7 +66,7 @@ export function usePlans() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
     })
-    if (!res.ok) throw new Error("Failed to update plan")
+    if (!res.ok) throw await responseError(res, "Failed to update plan")
     const updated = await res.json()
     setPlans((prev) => prev.map((p) => (p.id === id ? updated : p)))
     return updated
@@ -72,7 +76,8 @@ export function usePlans() {
     const res = await fetch(`/api/plans/${id}`, {
       method: "DELETE",
     })
-    if (!res.ok) throw new Error("Failed to delete plan")
+    if (!res.ok) throw await responseError(res, "Failed to delete plan")
+    setTotalCount((count) => Math.max(0, count - 1))
     setPlans((prev) => prev.filter((p) => p.id !== id))
   }, [])
 
@@ -82,6 +87,7 @@ export function usePlans() {
 
   return {
     plans,
+    totalCount,
     loading,
     error,
     fetchPlans,

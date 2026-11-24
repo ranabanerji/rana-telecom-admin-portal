@@ -3,6 +3,8 @@ package com.example.telecom.controller;
 import com.example.telecom.model.SupportTicket;
 import com.example.telecom.repository.CustomerRepository;
 import com.example.telecom.repository.SupportTicketRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -32,12 +34,8 @@ public class SupportTicketController {
             @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) String priority,
             @RequestParam(required = false) String status, @RequestParam(required = false) Long customerId) {
         LOG.info("Fetching tickets");
-        SupportTicket.Priority priorityEnum = (priority != null && !priority.isEmpty())
-                ? SupportTicket.Priority.valueOf(priority)
-                : null;
-        SupportTicket.Status statusEnum = (status != null && !status.isEmpty())
-                ? SupportTicket.Status.valueOf(status)
-                : null;
+        SupportTicket.Priority priorityEnum = Inputs.enumValue(SupportTicket.Priority.class, priority, "priority");
+        SupportTicket.Status statusEnum = Inputs.enumValue(SupportTicket.Status.class, status, "status");
 
         PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 100)));
         Page<SupportTicket> result;
@@ -46,7 +44,7 @@ public class SupportTicketController {
         if (hasFilters) {
             result = repository.findFiltered(priorityEnum, statusEnum, customerId, pageRequest);
         } else {
-            result = repository.findAllByOrderByCreatedAtDesc(pageRequest);
+            result = repository.findAllByOrderByCreatedAtDescIdDesc(pageRequest);
         }
 
         LOG.debug("Found {} tickets (page {} of {})", result.getNumberOfElements(), result.getNumber(),
@@ -68,35 +66,37 @@ public class SupportTicketController {
     }
 
     @PostMapping
-    public ResponseEntity<TicketResponse> createTicket(@RequestBody TicketRequest request) {
+    public ResponseEntity<TicketResponse> createTicket(@Valid @RequestBody TicketRequest request) {
         LOG.info("Creating ticket");
+        if (request.customerId() == null) {
+            throw new FieldProblem("customerId", "customerId is required");
+        }
+        Inputs.enumValue(SupportTicket.Status.class, request.status(), "status");
         return customerRepository.findById(request.customerId()).map(customer -> {
-            SupportTicket ticket = new SupportTicket(customer, request.subject(), request.description(),
-                    SupportTicket.Priority.valueOf(request.priority()));
+            SupportTicket ticket = new SupportTicket(customer, request.subject(),
+                    request.description() == null ? "" : request.description(),
+                    Inputs.enumValue(SupportTicket.Priority.class, request.priority(), "priority"));
             SupportTicket saved = repository.save(ticket);
             LOG.info("Ticket created: id={}", saved.getId());
             return ResponseEntity.ok(TicketResponse.from(saved));
         }).orElseGet(() -> {
             LOG.warn("Customer not found for ticket creation: customerId={}", request.customerId());
-            return ResponseEntity.badRequest().build();
+            throw new FieldProblem("customerId", "Unknown customerId");
         });
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TicketResponse> updateTicket(@PathVariable Long id, @RequestBody TicketRequest request) {
+    public ResponseEntity<TicketResponse> updateTicket(@PathVariable Long id,
+            @Valid @RequestBody TicketRequest request) {
         LOG.info("Updating ticket: id={}", id);
         return repository.findById(id).map(ticket -> {
             ticket.setSubject(request.subject());
-            ticket.setDescription(request.description());
+            ticket.setDescription(request.description() == null ? "" : request.description());
             if (request.priority() != null) {
-                ticket.setPriority(SupportTicket.Priority.valueOf(request.priority()));
+                ticket.setPriority(Inputs.enumValue(SupportTicket.Priority.class, request.priority(), "priority"));
             }
             if (request.status() != null) {
-                SupportTicket.Status newStatus = SupportTicket.Status.valueOf(request.status());
-                ticket.setStatus(newStatus);
-                if (newStatus == SupportTicket.Status.RESOLVED || newStatus == SupportTicket.Status.CLOSED) {
-                    ticket.setResolvedAt(Instant.now());
-                }
+                applyStatus(ticket, Inputs.enumValue(SupportTicket.Status.class, request.status(), "status"));
             }
             SupportTicket saved = repository.save(ticket);
             LOG.info("Ticket updated: id={}, status={}", saved.getId(), saved.getStatus());
@@ -105,6 +105,15 @@ public class SupportTicketController {
             LOG.warn("Ticket not found for update: id={}", id);
             return ResponseEntity.notFound().build();
         });
+    }
+
+    private static void applyStatus(SupportTicket ticket, SupportTicket.Status status) {
+        ticket.setStatus(status);
+        if (status == SupportTicket.Status.OPEN || status == SupportTicket.Status.IN_PROGRESS) {
+            ticket.setResolvedAt(null);
+        } else if (ticket.getResolvedAt() == null) {
+            ticket.setResolvedAt(Instant.now());
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -119,7 +128,8 @@ public class SupportTicketController {
         return ResponseEntity.noContent().build();
     }
 
-    public record TicketRequest(Long customerId, String subject, String description, String priority, String status) {
+    public record TicketRequest(@Positive Long customerId, @NotBlank String subject, String description,
+            @NotBlank String priority, String status) {
     }
 
     public record PagedResponse(List<TicketResponse> content, int page, int totalPages, long totalElements,

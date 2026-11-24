@@ -56,6 +56,7 @@ export default function TicketsPage() {
     hasNext,
     totalElements,
     loadMore,
+    refresh,
     createTicket,
     updateTicket,
     deleteTicket,
@@ -221,13 +222,26 @@ export default function TicketsPage() {
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
+              {error && (
+                <div role="alert" className="flex items-center gap-2 pb-2 text-red-500">
+                  {error}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (tickets.length) void loadMore()
+                      else void refresh()
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
               {loading ? (
                 <div className="text-muted-foreground flex h-full items-center justify-center">
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                   Loading...
                 </div>
-              ) : error ? (
-                <div className="py-8 text-center text-red-500">{error}</div>
               ) : (
                 <div ref={scrollRef} className="h-full overflow-auto">
                   <TicketsTable
