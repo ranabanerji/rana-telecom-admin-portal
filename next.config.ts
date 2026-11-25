@@ -5,7 +5,8 @@ import { securityHeaders } from "./security-headers.mjs"
 const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
 
 // The Cloudflare build is a static export: the Worker serves the pages and routes /api/* to the
-// backend container, and static exports cannot use rewrites.
+// backend container. Static exports cannot use rewrites or headers(), so scripts/write-static-headers.mjs
+// writes the same security headers to out/_headers.
 const staticExport = process.env.NEXT_OUTPUT === "export"
 
 export default function nextConfig(phase: string): NextConfig {

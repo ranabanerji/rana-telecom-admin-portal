@@ -1,17 +1,19 @@
 import { DurableObject } from "cloudflare:workers"
+import { verifyAccess } from "./access"
+import { containerEnv, withHsts, type BackendSettings } from "./backend-env"
 
-interface Env {
+interface Env extends BackendSettings {
   ASSETS: Fetcher
   BACKEND: DurableObjectNamespace<Backend>
-  DEMO_ADMIN_PASSWORD?: string
-  DEMO_AGENT_PASSWORD?: string
+  CF_ACCESS_TEAM_DOMAIN?: string
+  CF_ACCESS_AUD?: string
+  CF_ACCESS_JWKS?: string
 }
 
 const BACKEND_PORT = 8080
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000
 // Spring Boot on a 1/4 vCPU instance can take most of a minute to start.
 const READY_TIMEOUT_MS = 3 * 60 * 1000
-const DEMO_LOGIN_SECRETS = ["DEMO_ADMIN_PASSWORD", "DEMO_AGENT_PASSWORD"] as const
 
 /** Runs the Spring Boot backend in a Container and forwards API requests to it. */
 export class Backend extends DurableObject<Env> {
@@ -45,7 +47,7 @@ export class Backend extends DurableObject<Env> {
   private async startAndWaitUntilReady(): Promise<void> {
     const container = this.requireContainer()
     if (!container.running) {
-      container.start({ enableInternet: false, env: this.demoLoginEnv() })
+      container.start({ enableInternet: false, env: containerEnv(this.env) })
     }
     this.observeExit(container)
     await container.setInactivityTimeout(INACTIVITY_TIMEOUT_MS)
@@ -67,15 +69,6 @@ export class Backend extends DurableObject<Env> {
       await scheduler.wait(500)
     }
     throw new Error(`Backend did not become ready on port ${BACKEND_PORT}`, { cause: lastError })
-  }
-
-  private demoLoginEnv(): Record<string, string> {
-    const env: Record<string, string> = {}
-    for (const name of DEMO_LOGIN_SECRETS) {
-      const value = this.env[name]
-      if (value) env[name] = value
-    }
-    return env
   }
 
   private requireContainer(): Container {
@@ -100,10 +93,21 @@ export class Backend extends DurableObject<Env> {
 export default {
   async fetch(request, env): Promise<Response> {
     const { pathname } = new URL(request.url)
-    if (pathname === "/api" || pathname.startsWith("/api/")) {
-      // One instance: sessions live in the backend's memory and the data in its SQLite file.
-      return env.BACKEND.getByName("primary").fetch(request)
+    if (pathname !== "/api" && !pathname.startsWith("/api/")) return env.ASSETS.fetch(request)
+
+    // Cloudflare Access already guards the route; checking its token here keeps the API closed if a
+    // route or Access policy change ever lets requests through without it.
+    const access = await verifyAccess(request, {
+      teamDomain: env.CF_ACCESS_TEAM_DOMAIN,
+      audience: env.CF_ACCESS_AUD,
+      jwks: env.CF_ACCESS_JWKS,
+    })
+    if (!access.ok) {
+      console.warn(`Refused ${request.method} ${pathname}: ${access.reason}`)
+      return withHsts(Response.json({ error: "Forbidden" }, { status: 403 }))
     }
-    return env.ASSETS.fetch(request)
+
+    // One instance: sessions live in the backend's memory and the data in its SQLite file.
+    return withHsts(await env.BACKEND.getByName("primary").fetch(request))
   },
 } satisfies ExportedHandler<Env>

@@ -47,11 +47,14 @@ jobs:
         run: pnpm build:cloudflare
 
       # The demo login passwords go up with the deployed version, so a new container starts with them.
+      # The Worker refuses every API request unless both Access settings are set.
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           DEMO_ADMIN_PASSWORD: ${{ secrets.DEMO_ADMIN_PASSWORD }}
           DEMO_AGENT_PASSWORD: ${{ secrets.DEMO_AGENT_PASSWORD }}
+          CF_ACCESS_TEAM_DOMAIN: ${{ vars.CF_ACCESS_TEAM_DOMAIN }}
+          CF_ACCESS_AUD: ${{ vars.CF_ACCESS_AUD }}
         run: |
           for name in CLOUDFLARE_API_TOKEN DEMO_ADMIN_PASSWORD DEMO_AGENT_PASSWORD; do
             if [ -z "${!name}" ]; then
@@ -59,10 +62,17 @@ jobs:
               exit 1
             fi
           done
+          for name in CF_ACCESS_TEAM_DOMAIN CF_ACCESS_AUD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository variable $name"
+              exit 1
+            fi
+          done
           secrets_file="$RUNNER_TEMP/worker-secrets.json"
           node -e 'const { DEMO_ADMIN_PASSWORD, DEMO_AGENT_PASSWORD } = process.env; process.stdout.write(JSON.stringify({ DEMO_ADMIN_PASSWORD, DEMO_AGENT_PASSWORD }))' > "$secrets_file"
           trap 'rm -f "$secrets_file"' EXIT
-          pnpm exec wrangler deploy --secrets-file "$secrets_file"
+          pnpm exec wrangler deploy --secrets-file "$secrets_file" \
+            --var "CF_ACCESS_TEAM_DOMAIN:$CF_ACCESS_TEAM_DOMAIN" --var "CF_ACCESS_AUD:$CF_ACCESS_AUD"
 
       - name: Check the route answers
         run: |

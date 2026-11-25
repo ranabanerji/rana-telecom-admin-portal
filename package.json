@@ -9,7 +9,7 @@
     "dev:backend": "cd backend && ./gradlew bootRun",
     "build": "next build",
     "build:backend": "cd backend && ./gradlew build",
-    "build:cloudflare": "NEXT_OUTPUT=export next build",
+    "build:cloudflare": "NEXT_OUTPUT=export next build && node scripts/write-static-headers.mjs",
     "deploy:cloudflare": "pnpm build:cloudflare && wrangler deploy",
     "start": "concurrently \"pnpm start:frontend\" \"pnpm start:backend\"",
     "start:frontend": "next start",

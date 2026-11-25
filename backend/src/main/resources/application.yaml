@@ -22,6 +22,13 @@ server:
         # Set SESSION_COOKIE_SECURE=true whenever users reach the app over HTTPS. The XSRF-TOKEN cookie follows it.
         secure: ${SESSION_COOKIE_SECURE:false}
 
+# Swagger UI and the OpenAPI docs are enabled only by the dev profile (application-dev.yaml).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 app:
   http:
     # Requests with a larger body are refused with 413.

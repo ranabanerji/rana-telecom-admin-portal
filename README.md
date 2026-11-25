@@ -267,12 +267,42 @@ One-time setup:
    limit it to this account and the `ranabanerji.com` zone.
 3. Add repository secrets `CLOUDFLARE_API_TOKEN`, `DEMO_ADMIN_PASSWORD` and `DEMO_AGENT_PASSWORD`. Deploys
    upload the two passwords as Worker secrets, and the backend reads them when its container starts.
+4. Add repository variables (Settings > Secrets and variables > Actions > Variables) for the Access
+   application that covers the route:
+   - `CF_ACCESS_TEAM_DOMAIN`: the Zero Trust team domain, for example `myteam.cloudflareaccess.com`
+     (Zero Trust > Settings > Team name and domain).
+   - `CF_ACCESS_AUD`: the application's Audience (AUD) tag (Zero Trust > Access > Applications > the
+     application > Overview).
 
-To deploy from a machine with Docker running instead: `CLOUDFLARE_API_TOKEN=... pnpm deploy:cloudflare`.
+   The Deploy workflow stops if either is missing.
+
+To deploy from a machine with Docker running instead:
+
+```bash
+CLOUDFLARE_API_TOKEN=... pnpm deploy:cloudflare \
+  --var CF_ACCESS_TEAM_DOMAIN:myteam.cloudflareaccess.com --var CF_ACCESS_AUD:<aud-tag>
+```
+
+`wrangler deploy` replaces the Worker's variables with the ones it is given, so pass both every time.
+
+What the Worker adds on top of Access:
+
+- Every `/api/*` request must carry a valid Access token (`Cf-Access-Jwt-Assertion`). The Worker checks its
+  RS256 signature against the team's public keys (`https://<team>/cdn-cgi/access/certs`), its issuer,
+  audience and expiry. Requests without one, and every request when `CF_ACCESS_TEAM_DOMAIN` or
+  `CF_ACCESS_AUD` is not set, get `403`. This keeps the API closed if a route or Access policy change ever
+  lets requests reach the Worker without passing Access.
+- The backend container starts with `SESSION_COOKIE_SECURE=true` and throttles logins per client by the
+  `CF-Connecting-IP` header, which Cloudflare always overwrites.
+- Pages (through `out/_headers`, written by `pnpm build:cloudflare`) and API responses carry the security
+  headers plus `Strict-Transport-Security`.
 
 CI's `Cloudflare build` job runs `scripts/smoke-test-cloudflare.sh`. It starts the Worker, static assets and
-backend container locally with `wrangler dev` and checks pages, the API and a login through the Worker. Run
-it yourself with Docker running, after `pnpm build:cloudflare`, with the demo login variables exported.
+backend container locally with `wrangler dev` and checks pages, headers, the Access check, the API and a
+login through the Worker. Run it yourself with Docker running, after `pnpm build:cloudflare`, with the demo
+login variables exported. It writes a temporary `.dev.vars` with `SESSION_COOKIE_SECURE=false` (wrangler dev
+serves plain HTTP) and Access settings for a throwaway key from `scripts/dev-access-token.mjs`, which also
+signs the token the script sends.
 
 ## Application Pages
 
@@ -304,8 +334,10 @@ it yourself with Docker running, after `pnpm build:cloudflare`, with the demo lo
 
 ## API Documentation
 
-Start the backend, then open the Swagger UI at
-`http://localhost:8080/swagger-ui.html`.
+Start the backend with `pnpm dev:backend` (or `./gradlew bootRun`), then open the Swagger UI at
+`http://localhost:8080/swagger-ui.html`. Swagger UI and `/v3/api-docs` are on only with the `dev` Spring
+profile, which `bootRun` turns on unless `SPRING_PROFILES_ACTIVE` is set. The packaged jar and the
+Cloudflare container run without it.
 
 ## Project Structure
 

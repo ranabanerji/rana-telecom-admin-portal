@@ -24,6 +24,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      "cloudflare:workers": path.resolve(__dirname, "./worker/test-stubs/cloudflare-workers.ts"),
     },
   },
 })
