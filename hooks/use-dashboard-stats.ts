@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch } from "@/lib/api"
 
 export interface DashboardStats {
   active_customers: number
@@ -33,11 +34,11 @@ export function useDashboardStats() {
       setLoading(true)
       const [statsRes, customersPlanRes, devicesStatusRes, ticketsStatusRes, revenueRes] =
         await Promise.all([
-          fetch("/api/dashboard/stats"),
-          fetch("/api/dashboard/customers-by-plan"),
-          fetch("/api/dashboard/devices-by-status"),
-          fetch("/api/dashboard/tickets-by-status"),
-          fetch("/api/dashboard/revenue-by-plan"),
+          apiFetch("/api/dashboard/stats"),
+          apiFetch("/api/dashboard/customers-by-plan"),
+          apiFetch("/api/dashboard/devices-by-status"),
+          apiFetch("/api/dashboard/tickets-by-status"),
+          apiFetch("/api/dashboard/revenue-by-plan"),
         ])
 
       if (!statsRes.ok) throw new Error("Failed to fetch stats")

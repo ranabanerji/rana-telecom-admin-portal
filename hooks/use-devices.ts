@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch } from "@/lib/api"
 
 export interface Device {
   id: number
@@ -33,7 +34,7 @@ export function useDevices() {
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/devices")
+      const res = await apiFetch("/api/devices")
       if (!res.ok) throw new Error("Failed to fetch devices")
       const data = await res.json()
       setDevices(data)
@@ -46,7 +47,7 @@ export function useDevices() {
   }, [])
 
   const createDevice = useCallback(async (device: DeviceCreate) => {
-    const res = await fetch("/api/devices", {
+    const res = await apiFetch("/api/devices", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(device),
@@ -58,7 +59,7 @@ export function useDevices() {
   }, [])
 
   const updateDevice = useCallback(async (id: number, device: DeviceUpdate) => {
-    const res = await fetch(`/api/devices/${id}`, {
+    const res = await apiFetch(`/api/devices/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(device),
@@ -70,7 +71,7 @@ export function useDevices() {
   }, [])
 
   const deleteDevice = useCallback(async (id: number) => {
-    const res = await fetch(`/api/devices/${id}`, {
+    const res = await apiFetch(`/api/devices/${id}`, {
       method: "DELETE",
     })
     if (!res.ok) throw new Error("Failed to delete device")

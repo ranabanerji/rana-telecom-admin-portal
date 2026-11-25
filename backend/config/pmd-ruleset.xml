@@ -51,4 +51,11 @@
             <property name="ignoreMagicNumbers" value="-1,0,1"/>
         </properties>
     </rule>
+
+    <!-- Custom: MockMvc ResultActions.andExpect performs the assertion -->
+    <rule ref="category/java/bestpractices.xml/UnitTestShouldIncludeAssert">
+        <properties>
+            <property name="extraAssertMethodNames" value="andExpect"/>
+        </properties>
+    </rule>
 </ruleset>
