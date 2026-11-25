@@ -107,7 +107,7 @@ export function useTickets(filters: TicketFilters = {}) {
       })
       if (!res.ok) {
         log.error({ ticketId: id, status: res.status }, "Failed to delete ticket")
-        throw new Error("Failed to delete ticket")
+        throw await responseError(res, "Failed to delete ticket")
       }
       log.info({ ticketId: id }, "Ticket deleted")
       setTickets((prev) => prev.filter((t) => t.id !== id))

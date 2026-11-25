@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import PlansPage from "@/app/plans/page"
 import CustomersPage from "@/app/customers/page"
 import DevicesPage from "@/app/devices/page"
+import TicketsPage from "@/app/tickets/page"
 
 vi.mock("@/components/auth-provider", () => ({
   useAuth: () => ({ can: () => true }),
@@ -102,3 +103,80 @@ for (const { name, Component, rows, total, message } of [
       expect(row).toBeInTheDocument()
     })
   })
+
+describe("tickets page", () => {
+  const ticket = {
+    id: 7,
+    customer_id: 1,
+    customer_name: "Ada Lovelace",
+    subject: "No signal",
+    description: "",
+    priority: "HIGH",
+    status: "OPEN",
+    created_at: "2026-11-24T10:00:00Z",
+    resolved_at: null,
+  }
+
+  function stubTickets(deleteResponse: () => Response) {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "DELETE") return deleteResponse()
+      return {
+        ok: true,
+        json: async () => ({ content: [ticket], hasNext: false, totalElements: 1 }),
+      } as Response
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    return fetchMock
+  }
+
+  async function confirmDelete() {
+    render(<TicketsPage />)
+    fireEvent.click(await screen.findByRole("button", { name: "Delete ticket 7" }))
+    const dialog = screen.getByRole("alertdialog")
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }))
+    return dialog
+  }
+
+  it("keeps the dialog open and shows the API error when a delete is rejected", async () => {
+    stubTickets(
+      () =>
+        ({
+          ok: false,
+          status: 403,
+          json: async () => ({ detail: "Only admins can delete tickets." }),
+        }) as Response
+    )
+    const dialog = await confirmDelete()
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent("Only admins can delete tickets.")
+    )
+    expect(screen.getByRole("alertdialog")).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Delete ticket 7", hidden: true })
+    ).toBeInTheDocument()
+  })
+
+  it("falls back to a generic message when the error body is not Problem Details", async () => {
+    stubTickets(
+      () =>
+        ({
+          ok: false,
+          status: 502,
+          json: async () => {
+            throw new SyntaxError("Unexpected token <")
+          },
+        }) as unknown as Response
+    )
+    const dialog = await confirmDelete()
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent("Failed to delete ticket")
+    )
+  })
+
+  it("closes the dialog and removes the row when the delete succeeds", async () => {
+    stubTickets(() => ({ ok: true, status: 204 }) as Response)
+    await confirmDelete()
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument())
+    expect(screen.queryByRole("button", { name: "Delete ticket 7" })).not.toBeInTheDocument()
+  })
+})
