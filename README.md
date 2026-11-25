@@ -79,6 +79,13 @@ pnpm setup:python
 pnpm test:database # Conversion and deterministic UTC seeding regressions
 ```
 
+CI also lints the Python scripts with the pinned ruff version and rules in `scripts/ruff.toml`:
+
+```bash
+.venv/bin/python -m pip install -r scripts/requirements-dev.txt
+.venv/bin/ruff check scripts/
+```
+
 ### Schema and timestamp upgrades
 
 The backend's `backend/src/main/resources/db/migration/V1__baseline.sql` is the single schema definition. Flyway runs at startup and through `pnpm migrate:db`; Hibernate never creates tables, including in tests. SQLite foreign keys are enforced on every JDBC connection. The six query indexes live in that migration.

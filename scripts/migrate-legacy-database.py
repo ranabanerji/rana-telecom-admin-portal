@@ -60,7 +60,7 @@ def convert(source, target, source_timezone=None):
                 rows = original.execute(f'SELECT * FROM {table} ORDER BY id')
                 columns = [column[0] for column in rows.description]
                 indexes = [columns.index(column) for column in TIMESTAMPS.get(table, ())]
-                def converted_rows():
+                def converted_rows(rows, indexes):
                     for row in rows:
                         values = list(row)
                         for index in indexes:
@@ -68,7 +68,7 @@ def convert(source, target, source_timezone=None):
                         yield values
                 output.executemany(
                     f'INSERT INTO {table} ({",".join(columns)}) VALUES ({",".join("?" for _ in columns)})',
-                    converted_rows(),
+                    converted_rows(rows, indexes),
                 )
                 if original.execute(f'SELECT count(*) FROM {table}').fetchone() != output.execute(f'SELECT count(*) FROM {table}').fetchone():
                     raise ValueError(f'Row count changed in {table}')
