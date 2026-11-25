@@ -52,10 +52,11 @@ public class DashboardController {
     }
 
     @GetMapping("/customers-by-plan")
-    public List<ChartData> getCustomersByPlan() {
+    public List<PlanChartData> getCustomersByPlan() {
         LOG.info("Fetching customers by plan chart data");
-        List<ChartData> data = customerRepository.countByPlanName().stream()
-                .map(row -> new ChartData((String) row[0], ((Number) row[1]).longValue())).toList();
+        List<PlanChartData> data = customerRepository.countByPlanId().stream().map(
+                row -> new PlanChartData(((Number) row[0]).longValue(), (String) row[1], ((Number) row[2]).longValue()))
+                .toList();
         LOG.debug("Found {} plan categories", data.size());
         return data;
     }
@@ -82,14 +83,14 @@ public class DashboardController {
     @GetMapping("/revenue-by-plan")
     public List<RevenueData> getRevenueByPlan() {
         LOG.info("Fetching revenue by plan chart data");
-        Map<String, Long> customerCounts = customerRepository.findByStatus(Customer.Status.ACTIVE).stream()
+        Map<Long, Long> customerCounts = customerRepository.findByStatus(Customer.Status.ACTIVE).stream()
                 .filter(c -> c.getPlan() != null)
-                .collect(Collectors.groupingBy(c -> c.getPlan().getName(), Collectors.counting()));
+                .collect(Collectors.groupingBy(c -> c.getPlan().getId(), Collectors.counting()));
 
         List<RevenueData> data = planRepository.findAll().stream()
-                .filter(plan -> customerCounts.containsKey(plan.getName()))
-                .map(plan -> new RevenueData(plan.getName(),
-                        plan.getMonthlyPrice().multiply(BigDecimal.valueOf(customerCounts.get(plan.getName())))))
+                .filter(plan -> customerCounts.containsKey(plan.getId()))
+                .map(plan -> new RevenueData(plan.getId(), plan.getName(),
+                        plan.getMonthlyPrice().multiply(BigDecimal.valueOf(customerCounts.get(plan.getId())))))
                 .toList();
         LOG.debug("Found {} plans with revenue data", data.size());
         return data;
@@ -102,6 +103,9 @@ public class DashboardController {
     public record ChartData(String name, long value) {
     }
 
-    public record RevenueData(String name, BigDecimal revenue) {
+    public record PlanChartData(long plan_id, String name, long value) {
+    }
+
+    public record RevenueData(long plan_id, String name, BigDecimal revenue) {
     }
 }

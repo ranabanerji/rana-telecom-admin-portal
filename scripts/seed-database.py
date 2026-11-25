@@ -3,7 +3,8 @@
 
 import sqlite3
 import random
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
@@ -13,7 +14,8 @@ except ImportError:
     print("Or run: pip install -r scripts/requirements.txt")
     exit(1)
 
-DB_PATH = Path(__file__).parent.parent / "backend" / "app.db"
+DB_PATH = Path(os.environ.get("TELECOM_DB_PATH", Path(__file__).parent.parent / "backend" / "app.db"))
+SEED_NOW = datetime.now(timezone.utc)
 SEED = 42
 
 random.seed(SEED)
@@ -21,9 +23,11 @@ fake = Faker()
 Faker.seed(SEED)
 
 
-def to_sqlite_timestamp(dt: datetime) -> str:
-    """Convert datetime to SQLite JDBC compatible timestamp format."""
-    return dt.strftime("%Y-%m-%d %H:%M:%S.") + f"{dt.microsecond // 1000:03d}"
+def to_sqlite_timestamp(dt: datetime) -> int:
+    """UTC epoch milliseconds, matching SQLite JDBC (never accept naive time)."""
+    if dt.tzinfo is None:
+        raise ValueError("Timestamp must include a timezone")
+    return int(dt.timestamp() * 1000)
 
 PLANS = [
     ("Basic", 29.99, 5, 500, 500, True),
@@ -68,93 +72,6 @@ TICKET_SUBJECTS = [
 ]
 
 
-def create_tables(conn: sqlite3.Connection):
-    """Create tables matching JPA entity schema (plural table names)."""
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS plans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR(255) NOT NULL,
-            monthly_price NUMERIC(10,2) NOT NULL,
-            data_limit_gb INTEGER,
-            minutes_limit INTEGER,
-            sms_limit INTEGER,
-            is_active BOOLEAN NOT NULL DEFAULT 1
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS customers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name VARCHAR(255) NOT NULL,
-            last_name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL UNIQUE,
-            phone VARCHAR(255) NOT NULL,
-            plan_id BIGINT NOT NULL,
-            status VARCHAR(255) NOT NULL DEFAULT 'ACTIVE',
-            balance NUMERIC(10,2) NOT NULL DEFAULT 0,
-            activated_at TIMESTAMP,
-            created_at TIMESTAMP NOT NULL,
-            FOREIGN KEY (plan_id) REFERENCES plans(id)
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS devices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            imei VARCHAR(255) NOT NULL UNIQUE,
-            model VARCHAR(255) NOT NULL,
-            sim_number VARCHAR(255) NOT NULL UNIQUE,
-            customer_id BIGINT,
-            status VARCHAR(255) NOT NULL DEFAULT 'AVAILABLE',
-            assigned_at TIMESTAMP,
-            created_at TIMESTAMP NOT NULL,
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usage_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id BIGINT NOT NULL,
-            type VARCHAR(255) NOT NULL,
-            quantity NUMERIC(10,2) NOT NULL,
-            cost NUMERIC(10,2) NOT NULL,
-            recorded_at TIMESTAMP NOT NULL,
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS support_tickets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id BIGINT NOT NULL,
-            subject VARCHAR(255) NOT NULL,
-            description TEXT NOT NULL,
-            priority VARCHAR(255) NOT NULL DEFAULT 'MEDIUM',
-            status VARCHAR(255) NOT NULL DEFAULT 'OPEN',
-            created_at TIMESTAMP NOT NULL,
-            resolved_at TIMESTAMP,
-            FOREIGN KEY (customer_id) REFERENCES customers(id)
-        )
-    """)
-    
-    conn.commit()
-
-
-def clear_data(conn: sqlite3.Connection):
-    """Clear all existing data."""
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM usage_records")
-    cursor.execute("DELETE FROM support_tickets")
-    cursor.execute("DELETE FROM devices")
-    cursor.execute("DELETE FROM customers")
-    cursor.execute("DELETE FROM plans")
-    conn.commit()
-    print("Cleared existing data")
-
-
 def seed_plans(conn: sqlite3.Connection) -> list[int]:
     """Seed plans and return list of plan IDs."""
     cursor = conn.cursor()
@@ -167,7 +84,6 @@ def seed_plans(conn: sqlite3.Connection) -> list[int]:
         """, (name, price, data, minutes, sms, 1 if active else 0))
         plan_ids.append(cursor.lastrowid)
     
-    conn.commit()
     print(f"Created {len(PLANS)} plans")
     return plan_ids
 
@@ -177,7 +93,7 @@ def seed_customers(conn: sqlite3.Connection, plan_ids: list[int], count: int = 5
     cursor = conn.cursor()
     customer_ids = []
     statuses = ["ACTIVE"] * 80 + ["SUSPENDED"] * 10 + ["CANCELLED"] * 10
-    now = datetime.now()
+    now = SEED_NOW
     
     print(f"Creating {count} customers...")
     
@@ -209,7 +125,6 @@ def seed_customers(conn: sqlite3.Connection, plan_ids: list[int], count: int = 5
         if (i + 1) % 100 == 0:
             print(f"  Created {i + 1}/{count} customers")
     
-    conn.commit()
     print(f"Created {count} customers")
     return customer_ids
 
@@ -218,7 +133,7 @@ def seed_devices(conn: sqlite3.Connection, customer_ids: list[int], count: int =
     """Seed devices and return list of device IDs."""
     cursor = conn.cursor()
     device_ids = []
-    now = datetime.now()
+    now = SEED_NOW
     
     cursor.execute("SELECT id FROM customers WHERE status = 'ACTIVE'")
     active_customer_ids = [row[0] for row in cursor.fetchall()]
@@ -259,7 +174,7 @@ def seed_devices(conn: sqlite3.Connection, customer_ids: list[int], count: int =
             status = "LOST"
             assigned_at = None
         
-        created_at = datetime.now()
+        created_at = now
         cursor.execute("""
             INSERT INTO devices (imei, model, sim_number, customer_id, status, assigned_at, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -269,7 +184,6 @@ def seed_devices(conn: sqlite3.Connection, customer_ids: list[int], count: int =
         if (i + 1) % 100 == 0:
             print(f"  Created {i + 1}/{count} devices")
     
-    conn.commit()
     print(f"Created {count} devices")
     return device_ids
 
@@ -281,7 +195,7 @@ def seed_usage_records(conn: sqlite3.Connection, customer_ids: list[int], days: 
     cursor.execute("SELECT id FROM customers WHERE status = 'ACTIVE'")
     active_customer_ids = [row[0] for row in cursor.fetchall()]
     
-    now = datetime.now()
+    now = SEED_NOW
     usage_types = ["CALL", "DATA", "SMS"]
     records = []
     
@@ -313,7 +227,7 @@ def seed_usage_records(conn: sqlite3.Connection, customer_ids: list[int], days: 
                             quantity = random.randint(1, 15)
                             cost = round(quantity * 0.02, 2)
                         
-                        records.append((customer_id, usage_type, quantity, cost, to_sqlite_timestamp(record_time)))
+                        records.append((customer_id, usage_type, quantity, cost, to_sqlite_timestamp(min(record_time, now))))
         
         if (day_offset + 1) % 10 == 0:
             print(f"  Processed {day_offset + 1}/{days} days ({len(records)} records so far)")
@@ -323,7 +237,6 @@ def seed_usage_records(conn: sqlite3.Connection, customer_ids: list[int], days: 
         VALUES (?, ?, ?, ?, ?)
     """, records)
     
-    conn.commit()
     print(f"Created {len(records)} usage records")
 
 
@@ -336,7 +249,7 @@ def seed_support_tickets(conn: sqlite3.Connection, customer_ids: list[int], coun
     
     priorities = ["LOW"] * 20 + ["MEDIUM"] * 50 + ["HIGH"] * 25 + ["URGENT"] * 5
     statuses = ["OPEN"] * 30 + ["IN_PROGRESS"] * 25 + ["RESOLVED"] * 35 + ["CLOSED"] * 10
-    now = datetime.now()
+    now = SEED_NOW
     
     print(f"Creating {count} support tickets...")
     
@@ -369,7 +282,6 @@ def seed_support_tickets(conn: sqlite3.Connection, customer_ids: list[int], coun
         if (i + 1) % 50 == 0:
             print(f"  Created {i + 1}/{count} tickets")
     
-    conn.commit()
     print(f"Created {count} support tickets")
 
 
@@ -385,15 +297,21 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     
     try:
-        create_tables(conn)
-        clear_data(conn)
+        conn.execute("PRAGMA foreign_keys = ON")
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'flyway_schema_history'").fetchone():
+            raise RuntimeError("Run pnpm migrate:db before seeding; the backend owns the schema")
+        if any(conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] for table in ("plans", "customers", "devices", "usage_records", "support_tickets")):
+            print("Database already contains data; leaving it unchanged.")
+            return
         
         print()
+        conn.execute("BEGIN")
         plan_ids = seed_plans(conn)
         customer_ids = seed_customers(conn, plan_ids, count=500)
         seed_devices(conn, customer_ids, count=600)
         seed_usage_records(conn, customer_ids, days=90)
         seed_support_tickets(conn, customer_ids, count=250)
+        conn.commit()
         
         print()
         print("=" * 60)

@@ -11,17 +11,21 @@ import java.time.Instant;
 import java.util.List;
 
 public interface UsageRecordRepository extends JpaRepository<UsageRecord, Long> {
+    boolean existsByCustomerId(Long customerId);
+
+    long countByCustomerId(Long customerId);
+
     Page<UsageRecord> findByCustomerId(Long customerId, Pageable pageable);
 
-    Page<UsageRecord> findAllByOrderByRecordedAtDesc(Pageable pageable);
+    Page<UsageRecord> findAllByOrderByRecordedAtDescIdDesc(Pageable pageable);
 
-    @Query("SELECT u.type, FUNCTION('date', u.recordedAt), SUM(u.quantity) FROM UsageRecord u WHERE u.recordedAt >= :since GROUP BY u.type, FUNCTION('date', u.recordedAt) ORDER BY FUNCTION('date', u.recordedAt)")
+    @Query(value = "SELECT type, date(recorded_at / 1000.0, 'unixepoch'), SUM(quantity) FROM usage_records WHERE recorded_at >= :since GROUP BY 1, 2 ORDER BY 2, 1", nativeQuery = true)
     List<Object[]> sumByTypeAndDate(@Param("since") Instant since);
 
     @Query("SELECT u FROM UsageRecord u WHERE " + "(:type IS NULL OR u.type = :type) AND "
             + "(:customerId IS NULL OR u.customer.id = :customerId) AND "
-            + "(:dateFrom IS NULL OR u.recordedAt >= :dateFrom) AND " + "(:dateTo IS NULL OR u.recordedAt <= :dateTo) "
-            + "ORDER BY u.recordedAt DESC")
+            + "(:dateFrom IS NULL OR u.recordedAt >= :dateFrom) AND " + "(:dateTo IS NULL OR u.recordedAt < :dateTo) "
+            + "ORDER BY u.recordedAt DESC, u.id DESC")
     Page<UsageRecord> findFiltered(@Param("type") UsageRecord.Type type, @Param("customerId") Long customerId,
             @Param("dateFrom") Instant dateFrom, @Param("dateTo") Instant dateTo, Pageable pageable);
 }

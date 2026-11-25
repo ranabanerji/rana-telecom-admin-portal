@@ -6,12 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
 
 @RestController
@@ -32,13 +32,12 @@ public class UsageRecordController {
             @RequestParam(required = false) Long customerId, @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo) {
         LOG.info("Fetching usage records");
-        UsageRecord.Type typeEnum = (type != null && !type.isEmpty()) ? UsageRecord.Type.valueOf(type) : null;
-        Instant from = (dateFrom != null && !dateFrom.isEmpty())
-                ? LocalDate.parse(dateFrom).atStartOfDay().toInstant(ZoneOffset.UTC)
-                : null;
-        Instant to = (dateTo != null && !dateTo.isEmpty())
-                ? LocalDate.parse(dateTo).plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC)
-                : null;
+        UsageRecord.Type typeEnum = Inputs.enumValue(UsageRecord.Type.class, type, "type");
+        Instant from = Inputs.date(dateFrom, "dateFrom", false);
+        Instant to = Inputs.date(dateTo, "dateTo", true);
+        if (from != null && to != null && !from.isBefore(to)) {
+            throw new FieldProblem("dateTo", "dateTo must be on or after dateFrom");
+        }
 
         PageRequest pageRequest = PageRequest.of(Math.max(page, 0), Math.max(1, Math.min(size, 100)));
         Page<UsageRecord> result;
@@ -47,7 +46,7 @@ public class UsageRecordController {
         if (hasFilters) {
             result = repository.findFiltered(typeEnum, customerId, from, to, pageRequest);
         } else {
-            result = repository.findAllByOrderByRecordedAtDesc(pageRequest);
+            result = repository.findAllByOrderByRecordedAtDescIdDesc(pageRequest);
         }
 
         LOG.debug("Found {} usage records (page {} of {})", result.getNumberOfElements(), result.getNumber(),
@@ -57,12 +56,14 @@ public class UsageRecordController {
     }
 
     @GetMapping("/customer/{customerId}")
-    public List<UsageRecordResponse> getByCustomer(@PathVariable Long customerId) {
+    public ResponseEntity<List<UsageRecordResponse>> getByCustomer(@PathVariable Long customerId) {
         LOG.info("Fetching usage records for customer: customerId={}", customerId);
-        List<UsageRecordResponse> records = repository.findByCustomerId(customerId, PageRequest.of(0, 1000)).stream()
+        List<UsageRecordResponse> records = repository
+                .findByCustomerId(customerId, PageRequest.of(0, 1000, Sort.by("id"))).stream()
                 .map(UsageRecordResponse::from).toList();
         LOG.debug("Found {} usage records for customer {}", records.size(), customerId);
-        return records;
+        return ResponseEntity.ok().header("X-Total-Count", Long.toString(repository.countByCustomerId(customerId)))
+                .body(records);
     }
 
     public record PagedResponse(List<UsageRecordResponse> content, int page, int totalPages, long totalElements,

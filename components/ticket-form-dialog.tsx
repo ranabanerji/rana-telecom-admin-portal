@@ -44,16 +44,18 @@ function TicketForm({
   const [description, setDescription] = useState(ticket?.description ?? "")
   const [priority, setPriority] = useState(ticket?.priority ?? "MEDIUM")
   const [status, setStatus] = useState(ticket?.status ?? "OPEN")
+  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setSubmitting(true)
     try {
       if (isEditing) {
         const data: TicketUpdate = {
           subject,
-          description: description || undefined,
+          description,
           priority,
           status,
         }
@@ -62,12 +64,14 @@ function TicketForm({
         const data: TicketCreate = {
           customerId: parseInt(customerId),
           subject,
-          description: description || undefined,
+          description,
           priority,
         }
         await onSubmit(data)
       }
       onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed")
     } finally {
       setSubmitting(false)
     }
@@ -158,6 +162,11 @@ function TicketForm({
           )}
         </div>
       </div>
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-red-500">
+          {error}
+        </p>
+      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

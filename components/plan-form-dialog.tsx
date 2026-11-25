@@ -44,10 +44,12 @@ function PlanForm({
   const [minutesLimit, setMinutesLimit] = useState(plan?.minutes_limit?.toString() ?? "")
   const [smsLimit, setSmsLimit] = useState(plan?.sms_limit?.toString() ?? "")
   const [isActive, setIsActive] = useState(plan?.is_active ?? true)
+  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     setSubmitting(true)
     try {
       const data: PlanCreate | PlanUpdate = {
@@ -60,6 +62,8 @@ function PlanForm({
       }
       await onSubmit(data)
       onCancel()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed")
     } finally {
       setSubmitting(false)
     }
@@ -148,6 +152,11 @@ function PlanForm({
           </div>
         )}
       </div>
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-red-500">
+          {error}
+        </p>
+      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

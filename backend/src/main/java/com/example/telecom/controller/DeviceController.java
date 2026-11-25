@@ -1,11 +1,15 @@
 package com.example.telecom.controller;
 
 import com.example.telecom.model.Device;
+import com.example.telecom.model.Customer;
 import com.example.telecom.repository.CustomerRepository;
 import com.example.telecom.repository.DeviceRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,12 +31,12 @@ public class DeviceController {
     }
 
     @GetMapping
-    public List<DeviceResponse> getAllDevices() {
+    public ResponseEntity<List<DeviceResponse>> getAllDevices() {
         LOG.info("Fetching all devices");
-        List<DeviceResponse> devices = repository.findAll(PageRequest.of(0, 1000)).stream().map(DeviceResponse::from)
-                .toList();
+        List<DeviceResponse> devices = repository.findAll(PageRequest.of(0, 1000, Sort.by("id"))).stream()
+                .map(DeviceResponse::from).toList();
         LOG.debug("Found {} devices", devices.size());
-        return devices;
+        return ResponseEntity.ok().header("X-Total-Count", Long.toString(repository.count())).body(devices);
     }
 
     @GetMapping("/{id}")
@@ -48,42 +52,24 @@ public class DeviceController {
     }
 
     @PostMapping
-    public DeviceResponse createDevice(@RequestBody DeviceRequest request) {
+    public DeviceResponse createDevice(@Valid @RequestBody DeviceRequest request) {
         LOG.info("Creating device");
         Device device = new Device(request.imei(), request.model(), request.simNumber());
-        if (request.customerId() != null) {
-            customerRepository.findById(request.customerId()).ifPresent(customer -> {
-                device.setCustomer(customer);
-                device.setStatus(Device.Status.ASSIGNED);
-                device.setAssignedAt(Instant.now());
-                LOG.debug("Device assigned to customer: customerId={}", customer.getId());
-            });
-        }
+        applyAssignment(device, request);
         Device saved = repository.save(device);
         LOG.info("Device created: id={}", saved.getId());
         return DeviceResponse.from(saved);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DeviceResponse> updateDevice(@PathVariable Long id, @RequestBody DeviceRequest request) {
+    public ResponseEntity<DeviceResponse> updateDevice(@PathVariable Long id,
+            @Valid @RequestBody DeviceRequest request) {
         LOG.info("Updating device: id={}", id);
         return repository.findById(id).map(device -> {
             device.setImei(request.imei());
             device.setModel(request.model());
             device.setSimNumber(request.simNumber());
-            if (request.status() != null) {
-                device.setStatus(Device.Status.valueOf(request.status()));
-            }
-            if (request.customerId() != null) {
-                customerRepository.findById(request.customerId()).ifPresent(customer -> {
-                    device.setCustomer(customer);
-                    device.setStatus(Device.Status.ASSIGNED);
-                    device.setAssignedAt(Instant.now());
-                });
-            } else if (request.status() != null && "AVAILABLE".equals(request.status())) {
-                device.setCustomer(null);
-                device.setAssignedAt(null);
-            }
+            applyAssignment(device, request);
             Device saved = repository.save(device);
             LOG.info("Device updated: id={}", saved.getId());
             return ResponseEntity.ok(DeviceResponse.from(saved));
@@ -91,6 +77,34 @@ public class DeviceController {
             LOG.warn("Device not found for update: id={}", id);
             return ResponseEntity.notFound().build();
         });
+    }
+
+    private void applyAssignment(Device device, DeviceRequest request) {
+        Device.Status status = Inputs.enumValue(Device.Status.class, request.status(), "status");
+        Customer customer = request.customerId() == null
+                ? null
+                : customerRepository.findById(request.customerId())
+                        .orElseThrow(() -> new FieldProblem("customerId", "Unknown customerId"));
+        if (status == null) {
+            status = customer == null ? Device.Status.AVAILABLE : Device.Status.ASSIGNED;
+        }
+        if (status == Device.Status.ASSIGNED && customer == null) {
+            throw new FieldProblem("customerId", "ASSIGNED requires an existing customerId");
+        }
+        if (status == Device.Status.ASSIGNED) {
+            assignCustomer(device, customer);
+        } else {
+            device.setCustomer(null);
+            device.setAssignedAt(null);
+        }
+        device.setStatus(status);
+    }
+
+    private static void assignCustomer(Device device, Customer customer) {
+        if (device.getCustomer() == null || !device.getCustomer().getId().equals(customer.getId())) {
+            device.setAssignedAt(Instant.now());
+        }
+        device.setCustomer(customer);
     }
 
     @DeleteMapping("/{id}")
@@ -105,7 +119,8 @@ public class DeviceController {
         return ResponseEntity.noContent().build();
     }
 
-    public record DeviceRequest(String imei, String model, String simNumber, Long customerId, String status) {
+    public record DeviceRequest(@NotBlank String imei, @NotBlank String model, @NotBlank String simNumber,
+            @Positive Long customerId, String status) {
     }
 
     public record DeviceResponse(Long id, String imei, String model, String sim_number, Long customer_id,
