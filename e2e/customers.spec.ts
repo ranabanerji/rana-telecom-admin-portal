@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { reloadAndWaitForResponse } from "./page-helpers"
+import { reloadAndWaitForStatus } from "./page-helpers"
 
 test.describe("Customers Page", () => {
   test.beforeEach(async ({ page }) => {
@@ -14,9 +14,8 @@ test.describe("Customers Page", () => {
   })
 
   test("should load customers from API", async ({ page }) => {
-    const response = await reloadAndWaitForResponse(page, "/api/customers")
-    expect(response.status()).toBe(200)
-    const data = await response.json()
+    expect(await reloadAndWaitForStatus(page, "/api/customers")).toBe(200)
+    const data = await (await page.request.get("/api/customers")).json()
     expect(Array.isArray(data)).toBeTruthy()
     expect(data.length).toBeGreaterThan(0)
   })

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
-import { reloadAndWaitForResponse } from "./page-helpers"
+import { reloadAndWaitForStatus } from "./page-helpers"
 
 const KPI_TITLES = ["Active Customers", "Monthly Revenue", "Open Tickets", "Devices in Use"]
 const CHART_TITLES = ["Customers by Plan", "Revenue by Plan", "Device Status", "Ticket Status"]
@@ -29,9 +29,8 @@ test.describe("Dashboard", () => {
   })
 
   test("should load dashboard data from API", async ({ page }) => {
-    const response = await reloadAndWaitForResponse(page, "/api/dashboard/stats")
-    expect(response.status()).toBe(200)
-    const stats = await response.json()
+    expect(await reloadAndWaitForStatus(page, "/api/dashboard/stats")).toBe(200)
+    const stats = await (await page.request.get("/api/dashboard/stats")).json()
     expect(stats.active_customers).toBeGreaterThan(0)
     expect(stats.monthly_revenue).toBeGreaterThan(0)
   })
