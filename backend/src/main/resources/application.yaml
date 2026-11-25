@@ -13,11 +13,20 @@ spring:
     show-sql: false
 
 server:
+  # Accept connections from this machine only; see "Network Access" in the README before changing it.
+  address: ${SERVER_ADDRESS:127.0.0.1}
   servlet:
     session:
       cookie:
         http-only: true
         same-site: lax
+
+# Swagger UI and the OpenAPI docs are enabled only by the dev profile (application-dev.yaml).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 # Demo logins. Passwords have no default and must be supplied through the environment; an account without a
 # password is disabled. See "Demo logins" in the README.
