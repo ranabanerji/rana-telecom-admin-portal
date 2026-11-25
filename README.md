@@ -305,7 +305,8 @@ only makes the endpoints harder to discover. It does not protect them.
 │       ├── model/          # JPA entities
 │       ├── repository/     # Spring Data repos
 │       ├── security/       # Spring Security config, roles, demo users
-│       └── controller/     # REST controllers
+│       ├── service/        # Business rules and transactions
+│       └── controller/     # REST controllers (request/response mapping)
 ├── scripts/                # Utility scripts
 │   ├── seed-database.py    # Production-like data seeder
 │   └── requirements.txt    # Python dependencies

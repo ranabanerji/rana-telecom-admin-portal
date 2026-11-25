@@ -33,9 +33,19 @@
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
 
-    <!-- Controller path IDs are numeric; SpotBugs treats all request parameters as CRLF-capable strings. -->
+    <!-- Controllers keep the Spring-managed service bean they are constructed with. -->
     <Match>
-        <Package name="com.example.telecom.controller"/>
+        <Class name="~com\.example\.telecom\.controller\.\w+Controller"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!-- Logged path IDs are numeric; SpotBugs treats all request parameters as CRLF-capable strings. -->
+    <Match>
+        <Or>
+            <Package name="com.example.telecom.controller"/>
+            <Package name="com.example.telecom.service"/>
+        </Or>
         <Bug pattern="CRLF_INJECTION_LOGS"/>
     </Match>
 

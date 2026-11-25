@@ -1,24 +1,29 @@
 package com.example.telecom.controller;
 
 import com.example.telecom.model.Customer;
-import com.example.telecom.model.Plan;
-import com.example.telecom.repository.CustomerRepository;
-import com.example.telecom.repository.PlanRepository;
+import com.example.telecom.service.ConflictException;
+import com.example.telecom.service.CustomerService;
+import com.example.telecom.service.CustomerService.CustomerDetails;
+import com.example.telecom.service.InvalidInputException;
+import com.example.telecom.service.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
+import static com.example.telecom.EntityFixtures.customer;
+import static com.example.telecom.EntityFixtures.plan;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,32 +32,39 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/** HTTP mapping only; the customer rules are covered by CustomerServiceTest. */
 class CustomerControllerTest {
 
-    private final CustomerRepository repository = mock(CustomerRepository.class);
-    private final PlanRepository planRepository = mock(PlanRepository.class);
+    private static final String BODY = """
+            {"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","phone":"555-0100",
+             "planId":2,"status":"SUSPENDED","balance":12.34}
+            """;
+    private static final CustomerDetails DETAILS = new CustomerDetails("Ada", "Lovelace", "ada@example.com", "555-0100",
+            2L, Customer.Status.SUSPENDED, new BigDecimal("12.34"));
+
+    private final CustomerService service = mock(CustomerService.class);
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new CustomerController(repository, planRepository,
-                        mock(com.example.telecom.repository.SupportTicketRepository.class),
-                        mock(com.example.telecom.repository.UsageRecordRepository.class),
-                        mock(com.example.telecom.repository.DeviceRepository.class)))
+        mockMvc = MockMvcBuilders.standaloneSetup(new CustomerController(service))
                 .setControllerAdvice(new ApiExceptionHandler()).build();
     }
 
     @Test
-    void getAllCustomersFlattensPlanOntoTheResponse() throws Exception {
-        when(repository.findAll(any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(customer(1L, plan(2L, "Standard", "40.00")))));
+    void listReturnsTheFirstPageWithTheTotalCount() throws Exception {
+        PageRequest firstPage = PageRequest.of(0, 1000, Sort.by("id"));
+        when(service.findPage(firstPage))
+                .thenReturn(new PageImpl<>(List.of(customer(1L, plan(2L, "Standard", "40.00"))), firstPage, 1201));
 
-        mockMvc.perform(get("/api/customers")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+        mockMvc.perform(get("/api/customers")).andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1201")).andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].first_name").value("First1"))
                 .andExpect(jsonPath("$[0].last_name").value("Last1")).andExpect(jsonPath("$[0].plan_id").value(2))
                 .andExpect(jsonPath("$[0].plan_name").value("Standard"))
@@ -60,8 +72,8 @@ class CustomerControllerTest {
     }
 
     @Test
-    void getAllCustomersToleratesAMissingPlan() throws Exception {
-        when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(customer(1L, null))));
+    void listToleratesAMissingPlan() throws Exception {
+        when(service.findPage(any())).thenReturn(new PageImpl<>(List.of(customer(1L, null))));
 
         mockMvc.perform(get("/api/customers")).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].plan_id").value(nullValue()))
@@ -69,100 +81,81 @@ class CustomerControllerTest {
     }
 
     @Test
-    void getCustomerReturnsNotFoundForUnknownId() throws Exception {
-        when(repository.findById(anyLong())).thenReturn(Optional.empty());
+    void getReturnsNotFoundAsAProblem() throws Exception {
+        when(service.get(anyLong())).thenThrow(new NotFoundException("Customer", 404L));
 
-        mockMvc.perform(get("/api/customers/404")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/customers/404")).andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errors.id").exists());
     }
 
     @Test
-    void createCustomerRejectsAnUnknownPlan() throws Exception {
-        when(planRepository.findById(99L)).thenReturn(Optional.empty());
+    void createPassesTheParsedRequestToTheService() throws Exception {
+        Customer saved = customer(11L, plan(2L, "Standard", "40.00"));
+        when(service.create(DETAILS)).thenReturn(saved);
 
-        String body = """
-                {"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","phone":"555-0100","planId":99}
-                """;
-
-        mockMvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest());
-
-        verify(repository, never()).save(any(Customer.class));
-    }
-
-    @Test
-    void createCustomerStartsActiveWithTheGivenBalance() throws Exception {
-        when(planRepository.findById(2L)).thenReturn(Optional.of(plan(2L, "Standard", "40.00")));
-        when(repository.save(any(Customer.class))).thenAnswer(invocation -> {
-            Customer saved = invocation.getArgument(0);
-            saved.setId(11L);
-            return saved;
-        });
-
-        String body = """
-                {"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","phone":"555-0100",
-                 "planId":2,"balance":12.34}
-                """;
-
-        mockMvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(11))
-                .andExpect(jsonPath("$.status").value("ACTIVE")).andExpect(jsonPath("$.balance").value(12.34))
                 .andExpect(jsonPath("$.plan_name").value("Standard"));
     }
 
     @Test
-    void updateCustomerAppliesAStatusTransition() throws Exception {
-        when(repository.findById(1L)).thenReturn(Optional.of(customer(1L, plan(2L, "Standard", "40.00"))));
-        when(repository.save(any(Customer.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void createReportsServiceRuleViolationsAgainstTheField() throws Exception {
+        when(service.create(any())).thenThrow(new InvalidInputException("planId", "planId is required"));
 
-        String body = """
-                {"firstName":"First1","lastName":"Last1","email":"customer1@example.com","phone":"555-0001",
-                 "status":"SUSPENDED"}
-                """;
+        mockMvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.planId").value("planId is required"));
+    }
 
-        mockMvc.perform(put("/api/customers/1").contentType(MediaType.APPLICATION_JSON).content(body))
+    @Test
+    void createRejectsAnUnknownStatusBeforeCallingTheService() throws Exception {
+        mockMvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON)
+                .content(BODY.replace("SUSPENDED", "bogus"))).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.status").exists());
+
+        verify(service, never()).create(any());
+    }
+
+    @Test
+    void createRejectsMissingFieldsBeforeCallingTheService() throws Exception {
+        mockMvc.perform(post("/api/customers").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.firstName").exists());
+
+        verify(service, never()).create(any());
+    }
+
+    @Test
+    void updatePassesTheIdAndParsedRequestToTheService() throws Exception {
+        Customer saved = customer(1L, plan(2L, "Standard", "40.00"));
+        saved.setStatus(Customer.Status.SUSPENDED);
+        when(service.update(1L, DETAILS)).thenReturn(saved);
+
+        mockMvc.perform(put("/api/customers/1").contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUSPENDED"));
     }
 
     @Test
-    void updateCustomerReturnsNotFoundForUnknownId() throws Exception {
-        when(repository.findById(anyLong())).thenReturn(Optional.empty());
+    void updateReturnsNotFoundForAnUnknownId() throws Exception {
+        when(service.update(anyLong(), any())).thenThrow(new NotFoundException("Customer", 404L));
 
-        String body = """
-                {"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","phone":"555-0100"}
-                """;
-
-        mockMvc.perform(put("/api/customers/404").contentType(MediaType.APPLICATION_JSON).content(body))
+        mockMvc.perform(put("/api/customers/404").contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void deleteCustomerReturnsNoContentWhenPresent() throws Exception {
-        when(repository.existsById(1L)).thenReturn(true);
-
+    void deleteReturnsNoContent() throws Exception {
         mockMvc.perform(delete("/api/customers/1")).andExpect(status().isNoContent());
 
-        verify(repository).deleteById(1L);
+        verify(service).delete(1L);
     }
 
     @Test
-    void deleteCustomerReturnsNotFoundWhenMissing() throws Exception {
-        when(repository.existsById(404L)).thenReturn(false);
+    void deleteReportsConflictsAndMissingCustomers() throws Exception {
+        doThrow(new ConflictException("dependencies", "Customer has tickets")).when(service).delete(1L);
+        doThrow(new NotFoundException("Customer", 404L)).when(service).delete(404L);
 
+        mockMvc.perform(delete("/api/customers/1")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errors.dependencies").exists());
         mockMvc.perform(delete("/api/customers/404")).andExpect(status().isNotFound());
-
-        verify(repository, never()).deleteById(anyLong());
-    }
-
-    private static Plan plan(Long id, String name, String price) {
-        Plan plan = new Plan(name, new BigDecimal(price), 10, 500, 500);
-        plan.setId(id);
-        return plan;
-    }
-
-    private static Customer customer(Long id, Plan plan) {
-        Customer customer = new Customer("First" + id, "Last" + id, "customer" + id + "@example.com", "555-000" + id,
-                plan);
-        customer.setId(id);
-        return customer;
     }
 }

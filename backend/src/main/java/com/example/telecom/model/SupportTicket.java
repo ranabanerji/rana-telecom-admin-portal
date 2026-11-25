@@ -12,7 +12,12 @@ public class SupportTicket {
     }
 
     public enum Status {
-        OPEN, IN_PROGRESS, RESOLVED, CLOSED
+        OPEN, IN_PROGRESS, RESOLVED, CLOSED;
+
+        /** RESOLVED and CLOSED tickets carry a resolution time; the others do not. */
+        public boolean isResolved() {
+            return this == RESOLVED || this == CLOSED;
+        }
     }
 
     @Id

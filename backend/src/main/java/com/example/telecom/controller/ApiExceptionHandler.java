@@ -1,5 +1,8 @@
 package com.example.telecom.controller;
 
+import com.example.telecom.service.ConflictException;
+import com.example.telecom.service.InvalidInputException;
+import com.example.telecom.service.NotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.jpa.JpaSystemException;
@@ -19,6 +22,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(FieldProblem.class)
     public ProblemDetail fieldProblem(FieldProblem exception) {
         return problem(exception.getStatus(), exception.getField(), exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidInputException.class)
+    public ProblemDetail invalidInput(InvalidInputException exception) {
+        return problem(HttpStatus.BAD_REQUEST, exception.getField(), exception.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ProblemDetail ruleConflict(ConflictException exception) {
+        return problem(HttpStatus.CONFLICT, exception.getField(), exception.getMessage());
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ProblemDetail notFound(NotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, exception.getField(), exception.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
