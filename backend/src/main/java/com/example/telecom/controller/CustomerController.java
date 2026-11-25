@@ -129,8 +129,13 @@ public class CustomerController {
         return ResponseEntity.noContent().build();
     }
 
-    public record CustomerRequest(@NotBlank String firstName, @NotBlank String lastName, @NotBlank @Email String email,
-            @NotBlank String phone, @Positive Long planId, String status, BigDecimal balance) {
+    public record CustomerRequest(
+            @NotBlank @Size(max = FieldLimits.NAME, message = FieldLimits.TOO_LONG) String firstName,
+            @NotBlank @Size(max = FieldLimits.NAME, message = FieldLimits.TOO_LONG) String lastName,
+            @NotBlank @Email @Size(max = FieldLimits.EMAIL, message = FieldLimits.TOO_LONG) String email,
+            @NotBlank @Size(max = FieldLimits.PHONE, message = FieldLimits.TOO_LONG) String phone,
+            @Positive Long planId, String status,
+            @Digits(integer = FieldLimits.MONEY_INTEGER_DIGITS, fraction = FieldLimits.MONEY_FRACTION_DIGITS, message = FieldLimits.MONEY) BigDecimal balance) {
     }
 
     public record CustomerResponse(Long id, String first_name, String last_name, String email, String phone,

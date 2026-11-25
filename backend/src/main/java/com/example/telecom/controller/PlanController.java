@@ -106,7 +106,8 @@ public class PlanController {
         return ResponseEntity.noContent().build();
     }
 
-    public record PlanRequest(@NotBlank String name, @NotNull @Positive BigDecimal monthlyPrice,
+    public record PlanRequest(@NotBlank @Size(max = FieldLimits.NAME, message = FieldLimits.TOO_LONG) String name,
+            @NotNull @Positive @Digits(integer = FieldLimits.MONEY_INTEGER_DIGITS, fraction = FieldLimits.MONEY_FRACTION_DIGITS, message = FieldLimits.MONEY) BigDecimal monthlyPrice,
             @PositiveOrZero Integer dataLimitGb, @PositiveOrZero Integer minutesLimit, @PositiveOrZero Integer smsLimit,
             Boolean isActive) {
     }

@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- Failed logins are throttled per demo username (5) and per client address (50) in a 15-minute window;
+  further attempts get `429` with `Retry-After`, and the login form shows the reason.
+- Demo passwords shorter than 12 characters stop the backend at startup.
+- Request fields have length limits and money fields have digit limits. Request bodies over 64 KB are
+  refused with `413`, including chunked bodies.
+- `SESSION_COOKIE_SECURE=true` marks both the session cookie and the `XSRF-TOKEN` cookie `Secure`, for
+  deployments behind HTTPS. The session idle timeout is now explicit (`SESSION_TIMEOUT`, default `30m`).
+- Pages are served with a Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy` and `Cross-Origin-Opener-Policy`, and without `X-Powered-By`.
+
 ## [0.2.0] - 2026-11-24
 
 ### Security

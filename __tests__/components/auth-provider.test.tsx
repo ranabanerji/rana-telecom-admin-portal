@@ -1,4 +1,5 @@
 import { render, screen, waitFor, act } from "@testing-library/react"
+import { useState } from "react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { AuthProvider, useAuth } from "@/components/auth-provider"
 import { initials } from "@/components/nav-user"
@@ -132,6 +133,59 @@ describe("AuthProvider logout", () => {
     expect(new Headers(init.headers).get("X-XSRF-TOKEN")).toBe("test-token")
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"))
     expect(replace).not.toHaveBeenCalledWith(expect.stringContaining("next="))
+  })
+})
+
+describe("AuthProvider login", () => {
+  beforeEach(() => {
+    replace.mockReset()
+    pathname = "/login"
+    document.cookie = "XSRF-TOKEN=test-token"
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function LoginProbe() {
+    const { login } = useAuth()
+    const [message, setMessage] = useState("")
+    return (
+      <div>
+        <button
+          onClick={() => login("admin", "wrong").catch((error: Error) => setMessage(error.message))}
+        >
+          log in
+        </button>
+        <span>message:{message}</span>
+      </div>
+    )
+  }
+
+  it.each([
+    [
+      jsonResponse({ error: "Too many failed login attempts. Try again in 15 minutes." }, 429),
+      "Too many failed login attempts. Try again in 15 minutes.",
+    ],
+    [jsonResponse(null, 429), "Too many failed login attempts. Try again later."],
+    [jsonResponse({ error: "Invalid username or password" }, 401), "Invalid username or password"],
+  ])("shows the backend's reason when login is refused (%#)", async (response, expected) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(jsonResponse(null, 401)).mockResolvedValueOnce(response)
+    )
+    render(
+      <AuthProvider>
+        <LoginProbe />
+      </AuthProvider>
+    )
+    await screen.findByText("message:")
+
+    await act(async () => {
+      screen.getByRole("button", { name: "log in" }).click()
+    })
+
+    expect(await screen.findByText(`message:${expected}`)).toBeInTheDocument()
   })
 })
 
