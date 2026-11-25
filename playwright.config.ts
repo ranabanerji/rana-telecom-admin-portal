@@ -7,8 +7,9 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // No retries anywhere: a test that only passes on a second attempt is a bug to fix, not to hide.
+  retries: 0,
+  workers: process.env.CI ? 2 : undefined,
   // CI uploads the JUnit report with the other test results.
   reporter: [
     ["html", { open: "never" }],
@@ -17,7 +18,7 @@ export default defineConfig({
   ],
   use: {
     baseURL: frontendUrl,
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [

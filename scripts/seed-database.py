@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Seed database with production-like data for Telecom Demo Admin Portal."""
 
-import sqlite3
-import random
 import os
+import random
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
