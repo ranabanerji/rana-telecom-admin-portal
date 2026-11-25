@@ -128,7 +128,9 @@ public class SupportTicketController {
         return ResponseEntity.noContent().build();
     }
 
-    public record TicketRequest(@Positive Long customerId, @NotBlank String subject, String description,
+    public record TicketRequest(@Positive Long customerId,
+            @NotBlank @Size(max = FieldLimits.SUBJECT, message = FieldLimits.TOO_LONG) String subject,
+            @Size(max = FieldLimits.DESCRIPTION, message = FieldLimits.TOO_LONG) String description,
             @NotBlank String priority, String status) {
     }
 

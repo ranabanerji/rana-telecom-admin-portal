@@ -121,7 +121,8 @@ Use `TELECOM_DB_PATH` with the corresponding file path if invoking the seeder ag
 
 The portal and every `/api/**` endpoint except `/api/health` require a login. The backend creates two
 demo accounts at startup from environment variables. Passwords have **no default** and are never committed:
-an account whose password variable is unset is disabled, and the backend logs a warning.
+an account whose password variable is unset is disabled, and the backend logs a warning. A password shorter
+than 12 characters stops the backend at startup.
 
 | Variable              | Default             | Purpose                    |
 | --------------------- | ------------------- | -------------------------- |
@@ -160,9 +161,37 @@ login get `401`, and a logged-in user without permission gets `403`.
 - Login is a form POST to `/api/auth/login` (`username`, `password`). It returns the user profile and sets
   an HTTP-only `JSESSIONID` session cookie. `GET /api/auth/me` returns the current user and
   `POST /api/auth/logout` ends the session.
+- Failed logins are throttled. After 5 failures for one demo username, or 50 from one client address,
+  within 15 minutes, `/api/auth/login` answers `429` with a `Retry-After` header until that window ends,
+  even for the right password. A successful login clears the username's count. Anyone who can reach the
+  login page can lock a demo account this way for up to 15 minutes, which is the trade-off for stopping
+  password guessing.
 - CSRF protection uses a double-submit cookie: `GET /api/auth/csrf` issues a readable `XSRF-TOKEN` cookie,
   and every `POST`, `PUT` and `DELETE` (login and logout included) must send its value in an
   `X-XSRF-TOKEN` header. The frontend's `apiFetch` helper (`lib/api.ts`) does this automatically.
+
+#### Security settings
+
+| Variable                        | Default  | Purpose                                                                                                |
+| ------------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `SESSION_COOKIE_SECURE`         | `false`  | Mark `JSESSIONID` and `XSRF-TOKEN` as `Secure`. Set to `true` whenever users reach the app over HTTPS. |
+| `SESSION_TIMEOUT`               | `30m`    | Idle time before a session expires                                                                     |
+| `LOGIN_MAX_FAILURES_PER_USER`   | `5`      | Failed logins per demo username in one window                                                          |
+| `LOGIN_MAX_FAILURES_PER_CLIENT` | `50`     | Failed logins per client address in one window                                                         |
+| `LOGIN_THROTTLE_WINDOW`         | `15m`    | Length of the throttle window                                                                          |
+| `LOGIN_CLIENT_IP_HEADER`        | _(none)_ | Header with the real client address. Set it only behind a proxy that always overwrites that header.    |
+| `MAX_REQUEST_BODY`              | `64KB`   | Larger request bodies are refused with `413`                                                           |
+
+Behind the Next.js proxy every request reaches the backend from `127.0.0.1`, so locally the per-client limit
+acts as one shared limit.
+
+Request fields have length limits (for example 100 characters for names, 200 for a ticket subject and 5,000
+for a ticket description), and money fields allow 8 digits before and 2 after the decimal point. Longer
+values get `400` with a per-field message.
+
+Every page is served with a Content Security Policy and related headers, defined once in
+`security-headers.mjs`. The policy allows inline scripts and styles, because Next.js inlines its hydration
+data, but blocks scripts from other origins, plugins, and framing.
 
 Example with curl:
 

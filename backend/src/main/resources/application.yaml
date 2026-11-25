@@ -15,13 +15,19 @@ spring:
 server:
   servlet:
     session:
+      timeout: ${SESSION_TIMEOUT:30m}
       cookie:
         http-only: true
         same-site: lax
+        # Set SESSION_COOKIE_SECURE=true whenever users reach the app over HTTPS. The XSRF-TOKEN cookie follows it.
+        secure: ${SESSION_COOKIE_SECURE:false}
 
-# Demo logins. Passwords have no default and must be supplied through the environment; an account without a
-# password is disabled. See "Demo logins" in the README.
 app:
+  http:
+    # Requests with a larger body are refused with 413.
+    max-request-body: ${MAX_REQUEST_BODY:64KB}
+  # Demo logins. Passwords have no default and must be supplied through the environment; an account without a
+  # password is disabled, and one shorter than 12 characters stops startup. See "Demo logins" in the README.
   auth:
     admin:
       username: ${DEMO_ADMIN_USERNAME:admin}
@@ -33,3 +39,11 @@ app:
       password: ${DEMO_AGENT_PASSWORD:}
       name: ${DEMO_AGENT_NAME:Demo Agent}
       email: ${DEMO_AGENT_EMAIL:agent@example.com}
+    # Failed logins allowed per demo username and per client address within each window, before login is
+    # refused with 429.
+    login-throttle:
+      max-failures-per-user: ${LOGIN_MAX_FAILURES_PER_USER:5}
+      max-failures-per-client: ${LOGIN_MAX_FAILURES_PER_CLIENT:50}
+      window: ${LOGIN_THROTTLE_WINDOW:15m}
+      # Only set this when a trusted proxy that overwrites the header sits in front of every request.
+      client-ip-header: ${LOGIN_CLIENT_IP_HEADER:}

@@ -22,6 +22,9 @@ public final class DemoUserDirectory implements UserDetailsService {
 
     private static final Logger LOG = LoggerFactory.getLogger(DemoUserDirectory.class);
 
+    /** Shorter demo passwords are refused at startup. */
+    public static final int MIN_PASSWORD_LENGTH = 12;
+
     private final Map<String, Entry> users = new HashMap<>();
 
     public DemoUserDirectory(AuthProperties properties, PasswordEncoder passwordEncoder) {
@@ -39,6 +42,7 @@ public final class DemoUserDirectory implements UserDetailsService {
             LOG.warn("Demo {} account is disabled because {} is not set", role, passwordVariable);
             return;
         }
+        requireMinimumLength(account.password(), passwordVariable);
         String username = account.username().trim();
         if (users.containsKey(username)) {
             throw new IllegalStateException("Demo accounts must have distinct usernames: " + username);
@@ -49,6 +53,13 @@ public final class DemoUserDirectory implements UserDetailsService {
         String email = account.email() == null ? "" : account.email();
         users.put(username, new Entry(details, new UserProfile(username, name, email, role)));
         LOG.info("Demo {} account enabled: username={}", role, username);
+    }
+
+    private static void requireMinimumLength(String password, String passwordVariable) {
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalStateException(
+                    passwordVariable + " must be at least " + MIN_PASSWORD_LENGTH + " characters long");
+        }
     }
 
     @Override

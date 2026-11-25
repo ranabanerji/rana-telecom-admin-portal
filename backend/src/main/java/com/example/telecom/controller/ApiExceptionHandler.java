@@ -1,5 +1,6 @@
 package com.example.telecom.controller;
 
+import com.example.telecom.web.RequestBodyTooLargeException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.orm.jpa.JpaSystemException;
@@ -38,6 +39,9 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail unreadable(HttpMessageNotReadableException exception) {
+        if (exception.getMostSpecificCause() instanceof RequestBodyTooLargeException tooLarge) {
+            return problem(HttpStatus.CONTENT_TOO_LARGE, "body", tooLarge.getMessage());
+        }
         return problem(HttpStatus.BAD_REQUEST, "body", "Invalid JSON request or field type");
     }
 

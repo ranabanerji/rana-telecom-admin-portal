@@ -30,6 +30,20 @@ function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
+async function loginErrorMessage(res: Response): Promise<string> {
+  if (res.status === 401) return "Invalid username or password"
+  if (res.status === 429) {
+    try {
+      const body = await res.json()
+      if (typeof body?.error === "string") return body.error
+    } catch {
+      // Fall through to the generic message.
+    }
+    return "Too many failed login attempts. Try again later."
+  }
+  return "Login failed, please try again"
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname() ?? "/"
@@ -87,11 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       body: new URLSearchParams({ username, password }).toString(),
     })
-    if (!res.ok) {
-      throw new Error(
-        res.status === 401 ? "Invalid username or password" : "Login failed, please try again"
-      )
-    }
+    if (!res.ok) throw new Error(await loginErrorMessage(res))
     const profile: AuthUser = await res.json()
     loggedOut.current = false
     setUser(profile)

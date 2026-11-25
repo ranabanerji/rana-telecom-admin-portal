@@ -119,7 +119,10 @@ public class DeviceController {
         return ResponseEntity.noContent().build();
     }
 
-    public record DeviceRequest(@NotBlank String imei, @NotBlank String model, @NotBlank String simNumber,
+    public record DeviceRequest(
+            @NotBlank @Size(max = FieldLimits.DEVICE_IDENTIFIER, message = FieldLimits.TOO_LONG) String imei,
+            @NotBlank @Size(max = FieldLimits.NAME, message = FieldLimits.TOO_LONG) String model,
+            @NotBlank @Size(max = FieldLimits.DEVICE_IDENTIFIER, message = FieldLimits.TOO_LONG) String simNumber,
             @Positive Long customerId, String status) {
     }
 

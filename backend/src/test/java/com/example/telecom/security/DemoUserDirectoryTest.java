@@ -68,6 +68,15 @@ class DemoUserDirectoryTest {
     }
 
     @Test
+    void refusesPasswordsShorterThanTheMinimum() {
+        AuthProperties properties = new AuthProperties(account(ADMIN, "eleven-char"), null);
+
+        IllegalStateException error = Assertions.assertThrows(IllegalStateException.class,
+                () -> new DemoUserDirectory(properties, encoder), "a short password should stop startup");
+        Assertions.assertTrue(error.getMessage().contains("DEMO_ADMIN_PASSWORD"), error.getMessage());
+    }
+
+    @Test
     void accountToStringHidesThePassword() {
         Assertions.assertFalse(account(ADMIN, SECRET).toString().contains(SECRET),
                 "toString must not leak the password into logs");

@@ -1,5 +1,6 @@
 package com.example.telecom.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +12,6 @@ import org.springframework.security.authentication.AuthenticationTrustResolverIm
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -21,7 +21,9 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -38,7 +40,7 @@ import java.util.Map;
  */
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({AuthProperties.class, LoginThrottleProperties.class})
 public class SecurityConfig {
 
     public static final String LOGIN_URL = "/api/auth/login";
@@ -49,17 +51,21 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, DemoUserDirectory directory,
-            JsonMapper jsonMapper) {
+            JsonMapper jsonMapper, LoginThrottle throttle,
+            @Value("${server.servlet.session.cookie.secure:false}") boolean secureCookies) {
         HttpStatusEntryPoint unauthorized = new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED);
         http.authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/health", "/api/auth/csrf")
                 .permitAll().requestMatchers("/error", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
                 .permitAll().requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(ADMIN, AGENT)
                 .requestMatchers(HttpMethod.POST, "/api/tickets").hasAnyRole(ADMIN, AGENT)
                 .requestMatchers(HttpMethod.PUT, "/api/tickets/*").hasAnyRole(ADMIN, AGENT).requestMatchers("/api/**")
-                .hasRole(ADMIN).anyRequest().denyAll()).csrf(CsrfConfigurer::spa)
+                .hasRole(ADMIN).anyRequest().denyAll())
+                .csrf(csrf -> csrf.spa().csrfTokenRepository(csrfTokenRepository(secureCookies)))
+                .addFilterBefore(new LoginThrottleFilter(throttle, jsonMapper),
+                        UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form.loginPage("/login").loginProcessingUrl(LOGIN_URL)
-                        .successHandler(loginSuccessHandler(directory, jsonMapper))
-                        .failureHandler(loginFailureHandler(jsonMapper)).permitAll())
+                        .successHandler(loginSuccessHandler(directory, throttle, jsonMapper))
+                        .failureHandler(loginFailureHandler(throttle, jsonMapper)).permitAll())
                 .logout(logout -> logout.logoutUrl(LOGOUT_URL)
                         .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
                         .permitAll())
@@ -75,9 +81,26 @@ public class SecurityConfig {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-    private static AuthenticationSuccessHandler loginSuccessHandler(DemoUserDirectory directory,
+    /**
+     * The XSRF-TOKEN cookie follows the session cookie's {@code Secure} setting,
+     * because behind a TLS-terminating proxy the request itself looks like plain
+     * HTTP.
+     */
+    private static CookieCsrfTokenRepository csrfTokenRepository(boolean secureCookies) {
+        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookieCustomizer(cookie -> {
+            cookie.sameSite("Lax");
+            if (secureCookies) {
+                cookie.secure(true);
+            }
+        });
+        return repository;
+    }
+
+    private static AuthenticationSuccessHandler loginSuccessHandler(DemoUserDirectory directory, LoginThrottle throttle,
             JsonMapper jsonMapper) {
         return (request, response, authentication) -> {
+            throttle.recordSuccess(authentication.getName());
             UserProfile profile = directory.findProfile(authentication.getName()).orElseThrow();
             response.setStatus(HttpStatus.OK.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -86,8 +109,9 @@ public class SecurityConfig {
         };
     }
 
-    private static AuthenticationFailureHandler loginFailureHandler(JsonMapper jsonMapper) {
+    private static AuthenticationFailureHandler loginFailureHandler(LoginThrottle throttle, JsonMapper jsonMapper) {
         return (request, response, exception) -> {
+            throttle.recordFailure(request.getParameter("username"), throttle.clientOf(request));
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
