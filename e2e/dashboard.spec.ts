@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { reloadAndWaitForStatus } from "./page-helpers"
 
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,11 +14,10 @@ test.describe("Dashboard", () => {
   })
 
   test("should load dashboard data from API", async ({ page }) => {
-    const dashboardResponse = page.waitForResponse(
-      (response) => response.url().includes("/api/dashboard") && response.status() === 200
-    )
-    await page.reload()
-    await dashboardResponse
+    expect(await reloadAndWaitForStatus(page, "/api/dashboard/stats")).toBe(200)
+    const stats = await (await page.request.get("/api/dashboard/stats")).json()
+    expect(stats.active_customers).toBeGreaterThan(0)
+    expect(stats.monthly_revenue).toBeGreaterThan(0)
   })
 
   test("should display charts", async ({ page }) => {

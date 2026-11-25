@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { reloadAndWaitForStatus } from "./page-helpers"
 
 test.describe("Plans Page", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,13 +14,10 @@ test.describe("Plans Page", () => {
   })
 
   test("should load plans from API", async ({ page }) => {
-    const plansResponse = page.waitForResponse(
-      (response) => response.url().includes("/api/plans") && response.status() === 200
-    )
-    await page.reload()
-    const response = await plansResponse
-    const data = await response.json()
+    expect(await reloadAndWaitForStatus(page, "/api/plans")).toBe(200)
+    const data = await (await page.request.get("/api/plans")).json()
     expect(Array.isArray(data)).toBeTruthy()
+    expect(data.length).toBeGreaterThan(0)
   })
 
   test("should display plan details including price", async ({ page }) => {

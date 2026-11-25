@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { reloadAndWaitForStatus } from "./page-helpers"
 
 test.describe("Customers Page", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,13 +14,10 @@ test.describe("Customers Page", () => {
   })
 
   test("should load customers from API", async ({ page }) => {
-    const customersResponse = page.waitForResponse(
-      (response) => response.url().includes("/api/customers") && response.status() === 200
-    )
-    await page.reload()
-    const response = await customersResponse
-    const data = await response.json()
+    expect(await reloadAndWaitForStatus(page, "/api/customers")).toBe(200)
+    const data = await (await page.request.get("/api/customers")).json()
     expect(Array.isArray(data)).toBeTruthy()
+    expect(data.length).toBeGreaterThan(0)
   })
 
   test("should display customer data in table rows", async ({ page }) => {
@@ -30,7 +28,7 @@ test.describe("Customers Page", () => {
   })
 
   test("should have add customer button", async ({ page }) => {
-    const addButton = page.getByRole("button", { name: /add|new|create/i })
+    const addButton = page.getByRole("button", { name: "Add Customer", exact: true })
     await expect(addButton).toBeVisible()
   })
 })
