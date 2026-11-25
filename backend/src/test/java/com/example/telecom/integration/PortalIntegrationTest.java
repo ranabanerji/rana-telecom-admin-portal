@@ -282,20 +282,6 @@ class PortalIntegrationTest {
     }
 
     @Test
-    void aggregateDateBucketsUseEpochMillisecondsInUtc() {
-        customer.setCreatedAt(Instant.parse("2026-09-30T23:59:59.999Z"));
-        customers.saveAndFlush(customer);
-        assertEquals("2026-09", customers.countByMonth().getFirst()[0]);
-        usage.saveAndFlush(new UsageRecord(customer, UsageRecord.Type.SMS, BigDecimal.ONE, BigDecimal.ONE,
-                Instant.parse("2026-09-30T23:59:59.999Z")));
-        usage.saveAndFlush(new UsageRecord(customer, UsageRecord.Type.SMS, BigDecimal.ONE, BigDecimal.ONE,
-                Instant.parse("2026-10-01T00:00:00Z")));
-        List<Object[]> buckets = usage.sumByTypeAndDate(Instant.parse("2026-10-01T00:00:00Z"));
-        assertEquals(1, buckets.size());
-        assertEquals("2026-10-01", buckets.getFirst()[1]);
-    }
-
-    @Test
     void boundedListsAreOrderedAndAdvertiseTheirRealTotals() throws Exception {
         for (int i = 0; i < 1200; i++)
             jdbc.update(

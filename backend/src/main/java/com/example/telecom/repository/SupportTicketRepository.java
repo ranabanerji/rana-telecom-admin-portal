@@ -12,8 +12,6 @@ import java.util.List;
 public interface SupportTicketRepository extends JpaRepository<SupportTicket, Long> {
     boolean existsByCustomerId(Long customerId);
 
-    List<SupportTicket> findByStatus(SupportTicket.Status status);
-
     long countByStatusIn(List<SupportTicket.Status> statuses);
 
     @Query("SELECT t.status, COUNT(t) FROM SupportTicket t GROUP BY t.status")

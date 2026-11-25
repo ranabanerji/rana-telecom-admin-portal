@@ -17,7 +17,4 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
      */
     @Query("SELECT c.plan.id, c.plan.name, c.plan.monthlyPrice, COUNT(c) FROM Customer c WHERE c.status = 'ACTIVE' GROUP BY c.plan.id, c.plan.name, c.plan.monthlyPrice ORDER BY c.plan.id")
     List<Object[]> aggregateActiveByPlan();
-
-    @Query(value = "SELECT strftime('%Y-%m', created_at / 1000.0, 'unixepoch'), COUNT(*) FROM customers GROUP BY 1 ORDER BY 1 DESC", nativeQuery = true)
-    List<Object[]> countByMonth();
 }

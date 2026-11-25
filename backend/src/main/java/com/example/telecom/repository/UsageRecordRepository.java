@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
-import java.util.List;
 
 public interface UsageRecordRepository extends JpaRepository<UsageRecord, Long> {
     boolean existsByCustomerId(Long customerId);
@@ -18,9 +17,6 @@ public interface UsageRecordRepository extends JpaRepository<UsageRecord, Long> 
     Page<UsageRecord> findByCustomerId(Long customerId, Pageable pageable);
 
     Page<UsageRecord> findAllByOrderByRecordedAtDescIdDesc(Pageable pageable);
-
-    @Query(value = "SELECT type, date(recorded_at / 1000.0, 'unixepoch'), SUM(quantity) FROM usage_records WHERE recorded_at >= :since GROUP BY 1, 2 ORDER BY 2, 1", nativeQuery = true)
-    List<Object[]> sumByTypeAndDate(@Param("since") Instant since);
 
     @Query("SELECT u FROM UsageRecord u WHERE " + "(:type IS NULL OR u.type = :type) AND "
             + "(:customerId IS NULL OR u.customer.id = :customerId) AND "
