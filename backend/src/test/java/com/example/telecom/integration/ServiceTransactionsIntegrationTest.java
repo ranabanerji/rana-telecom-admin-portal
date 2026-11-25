@@ -1,6 +1,7 @@
 package com.example.telecom.integration;
 
 import com.example.telecom.service.CustomerService;
+import com.example.telecom.service.DashboardService;
 import com.example.telecom.service.DeviceService;
 import com.example.telecom.service.PlanService;
 import com.example.telecom.service.TicketService;
@@ -36,12 +37,14 @@ class ServiceTransactionsIntegrationTest {
     @Autowired
     private DeviceService deviceService;
     @Autowired
+    private DashboardService dashboardService;
+    @Autowired
     private TicketService ticketService;
 
     @Test
     void publicServiceMethodsAreTransactional() {
         AnnotationTransactionAttributeSource attributes = new AnnotationTransactionAttributeSource();
-        for (Object service : List.of(customerService, planService, deviceService, ticketService)) {
+        for (Object service : List.of(customerService, planService, deviceService, ticketService, dashboardService)) {
             assertTrue(AopUtils.isAopProxy(service), service.getClass() + " should be proxied");
             Class<?> type = AopUtils.getTargetClass(service);
             for (Method method : type.getDeclaredMethods()) {
