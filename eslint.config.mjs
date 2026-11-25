@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "backend/build/**",
     // Ignore coverage reports
     "coverage/**",
+    // Wrangler's local build output
+    ".wrangler/**",
   ]),
   {
     rules: {

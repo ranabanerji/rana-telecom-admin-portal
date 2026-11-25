@@ -1,0 +1,72 @@
+name: Deploy
+
+# Deploys to Cloudflare (Worker, static assets and backend container) after CI passes on main.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Cloudflare
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://telecom.working.ranabanerji.com
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static export
+        run: pnpm build:cloudflare
+
+      # The demo login passwords go up with the deployed version, so a new container starts with them.
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DEMO_ADMIN_PASSWORD: ${{ secrets.DEMO_ADMIN_PASSWORD }}
+          DEMO_AGENT_PASSWORD: ${{ secrets.DEMO_AGENT_PASSWORD }}
+        run: |
+          for name in CLOUDFLARE_API_TOKEN DEMO_ADMIN_PASSWORD DEMO_AGENT_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name"
+              exit 1
+            fi
+          done
+          secrets_file="$RUNNER_TEMP/worker-secrets.json"
+          node -e 'const { DEMO_ADMIN_PASSWORD, DEMO_AGENT_PASSWORD } = process.env; process.stdout.write(JSON.stringify({ DEMO_ADMIN_PASSWORD, DEMO_AGENT_PASSWORD }))' > "$secrets_file"
+          trap 'rm -f "$secrets_file"' EXIT
+          pnpm exec wrangler deploy --secrets-file "$secrets_file"
+
+      - name: Check the route answers
+        run: |
+          # Cloudflare Access answers unauthenticated requests with a redirect to its login page.
+          status="$(curl -s -o /dev/null -w '%{http_code}' https://telecom.working.ranabanerji.com/)"
+          echo "https://telecom.working.ranabanerji.com/ -> $status"
+          case "$status" in 200 | 302) ;; *) exit 1 ;; esac

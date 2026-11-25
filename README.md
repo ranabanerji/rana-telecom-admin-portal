@@ -211,6 +211,40 @@ the backend it starts reads the same values. Backend role tests generate random 
 pnpm lint
 ```
 
+## Deploying to Cloudflare
+
+The `Deploy` workflow (`.github/workflows/deploy.yml`) publishes the portal to
+https://telecom.working.ranabanerji.com after CI passes on `main`, and can also be run by hand from the
+Actions tab. Cloudflare Access protects every `*.working.ranabanerji.com` hostname, so only people the Access
+policy allows can reach the login page. The Worker's `workers.dev` and preview URLs are turned off because
+they would bypass Access.
+
+How it fits together (`wrangler.jsonc`):
+
+- `pnpm build:cloudflare` builds the frontend as a static export into `out/`. The Worker serves it as static
+  assets, so no Next.js server runs on Cloudflare.
+- The Worker (`worker/index.ts`) sends `/api/*` to a single `Backend` Durable Object, which starts the Spring
+  Boot backend in a [Cloudflare Container](https://developers.cloudflare.com/containers/) and forwards the
+  request to it. The first request after an idle period waits for the backend to start; the container stops
+  after 15 minutes without requests.
+- The container image (`backend/Dockerfile`, built from the repository root) ships a migrated and seeded
+  SQLite database. **Data is not kept**: every container start, including after each deploy, begins with
+  fresh demo data, and logins end when the container stops.
+
+One-time setup:
+
+1. The Cloudflare account needs the Workers Paid plan, which Containers require.
+2. Create an API token from the **Edit Cloudflare Workers** template, add **Account > Containers > Edit**, and
+   limit it to this account and the `ranabanerji.com` zone.
+3. Add repository secrets `CLOUDFLARE_API_TOKEN`, `DEMO_ADMIN_PASSWORD` and `DEMO_AGENT_PASSWORD`. Deploys
+   upload the two passwords as Worker secrets, and the backend reads them when its container starts.
+
+To deploy from a machine with Docker running instead: `CLOUDFLARE_API_TOKEN=... pnpm deploy:cloudflare`.
+
+CI's `Cloudflare build` job runs `scripts/smoke-test-cloudflare.sh`. It starts the Worker, static assets and
+backend container locally with `wrangler dev` and checks pages, the API and a login through the Worker. Run
+it yourself with Docker running, after `pnpm build:cloudflare`, with the demo login variables exported.
+
 ## Application Pages
 
 | Page      | URL          | Description           |

@@ -105,6 +105,39 @@ jobs:
       - name: Build
         run: ./gradlew build -x test
 
+  cloudflare:
+    name: Cloudflare build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static export
+        run: pnpm build:cloudflare
+
+      - name: Generate demo login passwords
+        run: |
+          for name in DEMO_ADMIN_PASSWORD DEMO_AGENT_PASSWORD; do
+            value="$(openssl rand -hex 16)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
+      - name: Smoke test Worker and backend container
+        run: scripts/smoke-test-cloudflare.sh
+
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest

@@ -1,0 +1,10 @@
+# The backend image (backend/Dockerfile) builds from the repository root; send only what it uses.
+*
+!backend/gradlew
+!backend/gradle/
+!backend/settings.gradle
+!backend/build.gradle
+!backend/config/
+!backend/src/
+!scripts/requirements.txt
+!scripts/seed-database.py

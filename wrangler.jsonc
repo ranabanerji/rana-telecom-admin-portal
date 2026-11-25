@@ -1,0 +1,51 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "telecom-admin-portal",
+  "account_id": "a0fdde7335083f6fc889c46da83595e2",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-24",
+  "upload_source_maps": true,
+  "observability": {
+    "enabled": true,
+  },
+  // Cloudflare Access protects *.working.ranabanerji.com. The workers.dev and preview URLs
+  // would bypass it, so they stay off.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "telecom.working.ranabanerji.com/*",
+      "zone_name": "ranabanerji.com",
+    },
+  ],
+  // The static export from `pnpm build:cloudflare`. Only /api/* reaches the Worker code.
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"],
+  },
+  "containers": [
+    {
+      "class_name": "Backend",
+      "image": "./backend/Dockerfile",
+      "image_build_context": ".",
+      "instance_type": "basic",
+      "max_instances": 1,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BACKEND",
+        "class_name": "Backend",
+      },
+    ],
+  },
+  "exports": {
+    "Backend": {
+      "type": "durable-object",
+      "storage": "sqlite",
+    },
+  },
+}
