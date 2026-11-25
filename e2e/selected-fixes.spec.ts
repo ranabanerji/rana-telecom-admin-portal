@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test"
 import { csrfToken } from "./auth-helpers"
 
-const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
+const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8080"
 
 test("used plan deletion remains visible as a conflict", async ({ page }) => {
   await page.goto("/plans")

@@ -1,6 +1,6 @@
 import type { APIRequestContext } from "@playwright/test"
 
-export const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
+export const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8080"
 
 export const ADMIN_STATE = "playwright/.auth/admin.json"
 export const AGENT_STATE = "playwright/.auth/agent.json"
