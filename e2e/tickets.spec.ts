@@ -34,7 +34,8 @@ test("a rejected ticket delete keeps the dialog open and shows the error", async
   await dialog.getByRole("button", { name: "Delete", exact: true }).click()
   expect((await rejected).status()).toBe(404)
 
-  await expect(dialog.getByRole("alert")).toHaveText("Failed to delete ticket")
+  // The API answers 404 with a problem-details body, and the dialog shows its field error.
+  await expect(dialog.getByRole("alert")).toHaveText(`id: Ticket ${ticketId} was not found`)
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole("button", { name: "Delete", exact: true })).toBeEnabled()
   await dialog.getByRole("button", { name: "Cancel" }).click()
