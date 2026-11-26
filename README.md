@@ -34,6 +34,19 @@ A telecom user administration system built with Next.js and Spring Boot.
 
 ## Getting Started
 
+### Quick start
+
+With [mise](https://mise.jdx.dev/) installed, three commands get you a running app:
+
+```bash
+mise install       # Node 22, Java 21, Python 3.12 and pnpm (pinned in .tool-versions)
+pnpm bootstrap     # install dependencies, create .venv, migrate and seed the database
+DEMO_ADMIN_PASSWORD=admin-demo DEMO_AGENT_PASSWORD=agent-demo pnpm dev
+```
+
+`pnpm doctor` checks the toolchain and prints fixes. Without mise, install the versions below by
+hand and use `pnpm run setup` instead of `pnpm bootstrap` (they are the same script).
+
 ### Prerequisites
 
 - Node.js 22+
