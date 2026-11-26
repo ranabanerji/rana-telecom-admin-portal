@@ -17,7 +17,7 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   names stay separate, and revenue is price times count in `BigDecimal` (SQLite's SUM returns a
   REAL, which would round two-decimal prices).
 - Developer setup (FAC-35): `.tool-versions` pins Node 22, Java 21, Python 3.12 and pnpm 10.33.4
-  for mise, `pnpm bootstrap` installs and seeds in one step, `pnpm doctor` checks the
+  for mise, `pnpm bootstrap` installs and seeds in one step, `pnpm run doctor` checks the
   toolchain and prints fixes, and the README has a three-command quick start.
 
 ### Changed
