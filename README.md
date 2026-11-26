@@ -44,7 +44,8 @@ pnpm bootstrap     # install dependencies, create .venv, migrate and seed the da
 DEMO_ADMIN_PASSWORD=admin-demo DEMO_AGENT_PASSWORD=agent-demo pnpm dev
 ```
 
-`pnpm doctor` checks the toolchain and prints fixes. Without mise, install the versions below by
+`pnpm run doctor` checks the toolchain and prints fixes (plain `pnpm doctor` is a built-in pnpm
+command and does not run it). Without mise, install the versions below by
 hand and use `pnpm run setup` instead of `pnpm bootstrap` (they are the same script).
 
 ### Prerequisites
